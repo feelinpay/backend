@@ -6,7 +6,7 @@ import {
   changePassword, 
   getLicenseInfo 
 } from '../controllers/profileController';
-import { authenticateToken, requireEmailVerified } from '../controllers/authController';
+import { authenticateToken } from '../middleware/auth';
 
 const router = express.Router();
 

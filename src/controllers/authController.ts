@@ -3,78 +3,24 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
-import { generateOTP, sendOTPEmail } from '../services/otpService';
+import { Usuario, CreateUsuarioDto, UserLoginDto, UserRegistrationDto } from '../models/Usuario';
+import { registerUserSchema, loginSchema, resetPasswordSchema, verifyOTPSchema } from '../validators/userValidators';
 import { EmailService } from '../services/emailService';
-import { UserRepository } from '../repositories/UserRepository';
-import { OTPRepository } from '../repositories/OTPRepository';
-import { registerUserSchema, loginSchema, verifyOTPSchema, resendOTPSchema, forgotPasswordSchema, resetPasswordSchema } from '../validators/userValidators';
 
 const prisma = new PrismaClient();
-const userRepository = new UserRepository(prisma);
-const otpRepository = new OTPRepository(prisma);
 
-// Extender el tipo Request para incluir user
-declare global {
-  namespace Express {
-    interface Request {
-      user?: any;
-    }
-  }
-}
-
-// Middleware de autenticación
-export const authenticateToken = async (req: Request, res: Response, next: Function) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ success: false, message: 'Token de acceso requerido' });
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
-    const user = await prisma.usuario.findUnique({
-      where: { id: decoded.userId },
-      include: { rol: true }
-    });
-
-    if (!user || !user.activo) {
-      return res.status(401).json({ success: false, message: 'Usuario no válido' });
-    }
-
-    req.user = user;
-    next();
-  } catch (error) {
-    return res.status(403).json({ success: false, message: 'Token inválido' });
-  }
-};
-
-// Middleware de autorización para super admin
-export const requireSuperAdmin = (req: Request, res: Response, next: Function) => {
-  if (req.user?.rol?.nombre !== 'super_admin') {
-    return res.status(403).json({ success: false, message: 'Acceso denegado. Se requiere rol de super administrador' });
-  }
-  next();
-};
-
-// Middleware para verificar email verificado
-export const requireEmailVerified = (req: Request, res: Response, next: Function) => {
-  if (!req.user?.emailVerificado) {
-    return res.status(403).json({ 
-      success: false, 
-      message: 'Debes verificar tu email antes de continuar',
-      requiresVerification: true 
-    });
-  }
-  next();
-};
+// El middleware de autenticación ya existe en src/middleware/auth.ts
 
 // Registro de usuario
 export const register = async (req: Request, res: Response) => {
   try {
-    // Validar datos con Zod
+    console.log('🔍 [REGISTER] ===== REGISTER ENDPOINT CALLED =====');
+    console.log('🔍 [REGISTER] Body recibido:', req.body);
+    
+    // Validar datos de entrada
     const validationResult = registerUserSchema.safeParse(req.body);
     if (!validationResult.success) {
+      console.log('🔍 [REGISTER] Errores de validación:', validationResult.error.issues);
       return res.status(400).json({
         success: false,
         message: 'Datos de entrada inválidos',
@@ -85,122 +31,123 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
-    const { nombre, telefono, email, password } = validationResult.data;
+    const userData = validationResult.data;
 
-    // Verificar si el email ya existe
-    const existingUser = await userRepository.findByEmail(email);
+    // Verificar si el usuario ya existe
+    const existingUser = await prisma.usuario.findUnique({
+      where: { email: userData.email }
+    });
 
     if (existingUser) {
-      return res.status(409).json({ 
-        success: false, 
-        message: 'El email ya está registrado' 
+      return res.status(400).json({
+        success: false,
+        message: 'El email ya está registrado'
       });
     }
 
-    // Obtener rol de propietario
+    // Buscar el rol propietario
     const rolPropietario = await prisma.rol.findFirst({
       where: { nombre: 'propietario' }
     });
 
     if (!rolPropietario) {
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Error de configuración del sistema' 
+      return res.status(500).json({
+        success: false,
+        message: 'Error del servidor: Rol propietario no encontrado'
       });
     }
 
     // Hash de la contraseña
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword = await bcrypt.hash(userData.password, 12);
 
-    // Crear usuario
-    const usuario = await userRepository.create({
-      id: uuidv4(),
-      nombre,
-      telefono,
-      email,
+    // Crear usuario usando el DTO
+    const createData: CreateUsuarioDto = {
+      nombre: userData.nombre,
+      email: userData.email,
+      telefono: userData.telefono,
       password: hashedPassword,
-      rolId: rolPropietario.id,
-      googleSpreadsheetId: `sheet_${uuidv4()}`,
+      rolId: rolPropietario.id, // ID dinámico del rol propietario
+      googleSpreadsheetId: '',
       activo: true,
+      emailVerificado: false,
       enPeriodoPrueba: true,
-      fechaInicioPrueba: new Date(),
-      diasPruebaRestantes: 3,
-      emailVerificado: false
+      diasPruebaRestantes: 3
+    };
+
+    const user = await prisma.usuario.create({
+      data: createData
     });
 
-    // Verificar límites de OTP diarios
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
+    // Verificar intentos OTP diarios para el nuevo usuario
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
-    if (usuario.lastOtpAttemptDate && usuario.lastOtpAttemptDate >= hoy) {
-      if (usuario.otpAttemptsToday >= 5) {
-        return res.status(429).json({
-          success: false,
-          message: 'Has excedido el límite de 5 códigos OTP por día. Intenta mañana.'
-        });
-      }
-    } else {
-      // Nuevo día, resetear contador
-      await prisma.usuario.update({
-        where: { id: usuario.id },
-        data: { otpAttemptsToday: 0 }
+    // Verificar límite de intentos (máximo 5 por día)
+    const maxAttempts = 5;
+    if (user.otpAttemptsToday >= maxAttempts) {
+      return res.status(429).json({
+        success: false,
+        message: `Has excedido el límite de intentos OTP diarios (${maxAttempts}). Intenta mañana.`
       });
     }
 
-    // Eliminar OTP anterior si existe
+    // Generar código OTP para verificación de email
+    const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
+
+    // Eliminar OTPs anteriores del mismo tipo
     await prisma.otpCode.deleteMany({
-      where: { email: usuario.email }
-    });
-
-    // Generar nuevo OTP
-    const codigo = generateOTP();
-    const expiraEn = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
-
-    await otpRepository.create({
-      email: usuario.email,
-      codigo,
-      tipo: 'EMAIL_VERIFICATION',
-      expiraEn
-    });
-
-    // Actualizar contador de intentos
-    await prisma.usuario.update({
-      where: { id: usuario.id },
-      data: {
-        otpAttemptsToday: { increment: 1 },
-        lastOtpAttemptDate: new Date()
+      where: { 
+        email: userData.email,
+        tipo: 'EMAIL_VERIFICATION'
       }
     });
 
-    // Enviar email con diseño atractivo
-    const emailService = new EmailService();
-    await emailService.sendOTPEmail(usuario.email, codigo, 'EMAIL_VERIFICATION', usuario.nombre);
+    // Crear nuevo OTP
+    await prisma.otpCode.create({
+      data: {
+        id: uuidv4(),
+        email: userData.email,
+        codigo,
+        tipo: 'EMAIL_VERIFICATION',
+        expiraEn: expiresAt,
+        usado: false
+      }
+    });
 
-    // Generar token JWT
-    const token = jwt.sign(
-      { 
-        userId: usuario.id, 
-        email: usuario.email, 
-        rol: usuario.rol.nombre 
-      },
-      process.env.JWT_SECRET!,
-      { expiresIn: '24h' }
+    // Incrementar contador de intentos
+    await prisma.usuario.update({
+      where: { id: user.id },
+      data: { 
+        otpAttemptsToday: user.otpAttemptsToday + 1,
+        lastOtpAttemptDate: today
+      }
+    });
+
+    // Enviar email con OTP
+    const emailService = new EmailService();
+    const emailEnviado = await emailService.sendOTPEmail(
+      userData.email, 
+      codigo, 
+      'EMAIL_VERIFICATION',
+      userData.nombre
     );
+
+    if (!emailEnviado) {
+      console.error('Error enviando email de verificación');
+      return res.status(500).json({
+        success: false,
+        message: 'Error enviando el código de verificación'
+      });
+    }
 
     res.status(201).json({
       success: true,
-      message: 'Usuario registrado exitosamente. Verifica tu email para continuar.',
-      data: {
-        user: {
-          id: usuario.id,
-          nombre: usuario.nombre,
-          email: usuario.email,
-          rol: usuario.rol.nombre,
-          emailVerificado: usuario.emailVerificado,
-          enPeriodoPrueba: usuario.enPeriodoPrueba,
-          diasPruebaRestantes: usuario.diasPruebaRestantes
-        },
-        token
+      message: 'Usuario registrado exitosamente. Se ha enviado un código de verificación a tu email.',
+      data: { 
+        userId: user.id,
+        requiresOTP: true,
+        email: userData.email
       }
     });
 
@@ -216,7 +163,7 @@ export const register = async (req: Request, res: Response) => {
 // Login de usuario
 export const login = async (req: Request, res: Response) => {
   try {
-    // Validar datos con Zod
+    // Validar datos de entrada
     const validationResult = loginSchema.safeParse(req.body);
     if (!validationResult.success) {
       return res.status(400).json({
@@ -229,48 +176,123 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    const { email, password } = validationResult.data;
+    const loginData = validationResult.data;
 
     // Buscar usuario
-    const usuario = await userRepository.findByEmail(email);
+    const user = await prisma.usuario.findUnique({
+      where: { email: loginData.email },
+      include: { rol: true }
+    });
 
-    if (!usuario) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Credenciales inválidas' 
+    if (!user || !user.activo) {
+      return res.status(401).json({
+        success: false,
+        message: 'Credenciales inválidas'
       });
     }
 
     // Verificar contraseña
-    const isValidPassword = await bcrypt.compare(password, usuario.password);
+    const isValidPassword = await bcrypt.compare(loginData.password, user.password);
     if (!isValidPassword) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Credenciales inválidas' 
+      return res.status(401).json({
+        success: false,
+        message: 'Credenciales inválidas'
       });
     }
 
-    // Verificar si el usuario está activo
-    if (!usuario.activo) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Tu cuenta está desactivada' 
+    // Verificar si el email está verificado
+    if (!user.emailVerificado) {
+      // Verificar intentos OTP diarios
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const lastAttemptDate = user.lastOtpAttemptDate ? new Date(user.lastOtpAttemptDate) : null;
+      const isNewDay = !lastAttemptDate || lastAttemptDate < today;
+      
+      // Si es un nuevo día, resetear contador
+      if (isNewDay) {
+        await prisma.usuario.update({
+          where: { id: user.id },
+          data: { 
+            otpAttemptsToday: 0,
+            lastOtpAttemptDate: today
+          }
+        });
+        user.otpAttemptsToday = 0;
+      }
+      
+      // Verificar límite de intentos (máximo 5 por día)
+      const maxAttempts = 5;
+      if (user.otpAttemptsToday >= maxAttempts) {
+        return res.status(429).json({
+          success: false,
+          message: `Has excedido el límite de intentos OTP diarios (${maxAttempts}). Intenta mañana.`
+        });
+      }
+
+      // Generar código OTP para verificación de login
+      const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
+
+      // Eliminar OTPs anteriores del mismo tipo
+      await prisma.otpCode.deleteMany({
+        where: { 
+          email: user.email,
+          tipo: 'LOGIN_VERIFICATION'
+        }
+      });
+
+      // Crear nuevo OTP
+      await prisma.otpCode.create({
+        data: {
+          id: uuidv4(),
+          email: user.email,
+          codigo,
+          tipo: 'LOGIN_VERIFICATION',
+          expiraEn: expiresAt,
+          usado: false
+        }
+      });
+
+      // Incrementar contador de intentos
+      await prisma.usuario.update({
+        where: { id: user.id },
+        data: { 
+          otpAttemptsToday: user.otpAttemptsToday + 1,
+          lastOtpAttemptDate: today
+        }
+      });
+
+      // Enviar email con OTP
+      const emailService = new EmailService();
+      const emailEnviado = await emailService.sendOTPEmail(
+        user.email, 
+        codigo, 
+        'LOGIN_VERIFICATION',
+        user.nombre
+      );
+
+      if (!emailEnviado) {
+        console.error('Error enviando email de verificación');
+        return res.status(500).json({
+          success: false,
+          message: 'Error enviando el código de verificación'
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: 'Se ha enviado un código de verificación a tu email',
+        data: {
+          requiresOTP: true,
+          email: user.email
+        }
       });
     }
 
-    // Actualizar último login
-    await prisma.usuario.update({
-      where: { id: usuario.id },
-      data: { lastLoginAt: new Date() }
-    });
-
-    // Generar token JWT
+    // Generar token
     const token = jwt.sign(
-      { 
-        userId: usuario.id, 
-        email: usuario.email, 
-        rol: usuario.rol.nombre 
-      },
+      { userId: user.id, email: user.email, rol: user.rol.nombre },
       process.env.JWT_SECRET!,
       { expiresIn: '24h' }
     );
@@ -280,15 +302,16 @@ export const login = async (req: Request, res: Response) => {
       message: 'Login exitoso',
       data: {
         user: {
-          id: usuario.id,
-          nombre: usuario.nombre,
-          email: usuario.email,
-          rol: usuario.rol.nombre,
-          emailVerificado: usuario.emailVerificado,
-          enPeriodoPrueba: usuario.enPeriodoPrueba,
-          diasPruebaRestantes: usuario.diasPruebaRestantes
+          id: user.id,
+          nombre: user.nombre,
+          email: user.email,
+          rol: user.rol.nombre,
+          emailVerificado: user.emailVerificado,
+          enPeriodoPrueba: user.enPeriodoPrueba,
+          diasPruebaRestantes: user.diasPruebaRestantes
         },
-        token
+        token,
+        requiresOTP: false
       }
     });
 
@@ -304,48 +327,41 @@ export const login = async (req: Request, res: Response) => {
 // Verificar OTP
 export const verifyOTP = async (req: Request, res: Response) => {
   try {
-    // Validar datos con Zod
-    const validationResult = verifyOTPSchema.safeParse(req.body);
-    if (!validationResult.success) {
-      return res.status(400).json({
-        success: false,
-        message: 'Datos de entrada inválidos',
-        errors: validationResult.error.issues.map(err => ({
-          field: err.path.join('.'),
-          message: err.message
-        }))
-      });
-    }
+    const { email, codigo } = req.body;
 
-    const { email, codigo, tipo } = validationResult.data;
-
-    // Buscar OTP activo
-    const otp = await otpRepository.findByEmailAndCode(email, codigo, tipo);
+    // Buscar OTP
+    const otp = await prisma.otpCode.findFirst({
+      where: {
+        email,
+        codigo,
+        tipo: 'EMAIL_VERIFICATION',
+        usado: false,
+        expiraEn: { gt: new Date() }
+      }
+    });
 
     if (!otp) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Código OTP inválido o expirado' 
+      return res.status(400).json({
+        success: false,
+        message: 'Código OTP inválido o expirado'
       });
     }
 
     // Marcar OTP como usado
-    await otpRepository.markAsUsed(otp.id);
+    await prisma.otpCode.update({
+      where: { id: otp.id },
+      data: { usado: true }
+    });
 
-    // Si es verificación de email, marcar usuario como verificado
-    if (tipo === 'EMAIL_VERIFICATION') {
-      await prisma.usuario.update({
-        where: { email },
-        data: { 
-          emailVerificado: true,
-          emailVerificadoAt: new Date()
-        }
-      });
-    }
+    // Marcar email como verificado
+    await prisma.usuario.update({
+      where: { email },
+      data: { emailVerificado: true }
+    });
 
     res.json({
       success: true,
-      message: 'Código OTP verificado exitosamente'
+      message: 'Email verificado exitosamente'
     });
 
   } catch (error) {
@@ -360,50 +376,50 @@ export const verifyOTP = async (req: Request, res: Response) => {
 // Reenviar OTP
 export const resendOTP = async (req: Request, res: Response) => {
   try {
-    // Validar datos con Zod
-    const validationResult = resendOTPSchema.safeParse(req.body);
-    if (!validationResult.success) {
-      return res.status(400).json({
-        success: false,
-        message: 'Datos de entrada inválidos',
-        errors: validationResult.error.issues.map(err => ({
-          field: err.path.join('.'),
-          message: err.message
-        }))
-      });
-    }
+    const { email } = req.body;
 
-    const { email, tipo } = validationResult.data;
-
-    // Verificar si el usuario existe
-    const usuario = await userRepository.findByEmail(email);
-
-    if (!usuario) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Usuario no encontrado' 
-      });
-    }
-
-    // Generar nuevo OTP
-    const codigo = generateOTP();
-    const expiraEn = new Date(Date.now() + 10 * 60 * 1000);
-
-    await otpRepository.create({
-      email: usuario.email,
-      codigo,
-      tipo,
-      expiraEn,
-      // metadata removed - using direct fields
+    // Eliminar OTPs existentes para este email
+    await prisma.otpCode.deleteMany({
+      where: { 
+        email,
+        tipo: 'EMAIL_VERIFICATION'
+      }
     });
 
-    // Enviar email
+    // Generar nuevo OTP
+    const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Guardar OTP
+    await prisma.otpCode.create({
+      data: {
+        id: uuidv4(),
+        email,
+        codigo,
+        tipo: 'EMAIL_VERIFICATION',
+        expiraEn: new Date(Date.now() + 10 * 60 * 1000), // 10 minutos
+        usado: false
+      }
+    });
+
+    // Enviar email con el OTP
     const emailService = new EmailService();
-    await emailService.sendOTPEmail(usuario.email, codigo, tipo, usuario.nombre);
+    const emailEnviado = await emailService.sendOTPEmail(
+      email, 
+      codigo, 
+      'EMAIL_VERIFICATION'
+    );
+
+    if (!emailEnviado) {
+      console.error('Error enviando email de verificación');
+      return res.status(500).json({
+        success: false,
+        message: 'Error enviando el código de verificación'
+      });
+    }
 
     res.json({
       success: true,
-      message: 'Código OTP reenviado exitosamente'
+      message: 'Código OTP enviado exitosamente'
     });
 
   } catch (error) {
@@ -418,82 +434,63 @@ export const resendOTP = async (req: Request, res: Response) => {
 // Recuperar contraseña
 export const forgotPassword = async (req: Request, res: Response) => {
   try {
-    // Validar datos con Zod
-    const validationResult = forgotPasswordSchema.safeParse(req.body);
-    if (!validationResult.success) {
-      return res.status(400).json({
-        success: false,
-        message: 'Datos de entrada inválidos',
-        errors: validationResult.error.issues.map(err => ({
-          field: err.path.join('.'),
-          message: err.message
-        }))
-      });
-    }
-
-    const { email } = validationResult.data;
+    const { email } = req.body;
 
     // Verificar si el usuario existe
-    const usuario = await userRepository.findByEmail(email);
+    const user = await prisma.usuario.findUnique({
+      where: { email }
+    });
 
-    if (!usuario) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Usuario no encontrado' 
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
       });
     }
 
-    // Verificar límites de OTP diarios
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    
-    if (usuario.lastOtpAttemptDate && usuario.lastOtpAttemptDate >= hoy) {
-      if (usuario.otpAttemptsToday >= 5) {
-        return res.status(429).json({
-          success: false,
-          message: 'Has excedido el límite de 5 códigos OTP por día. Intenta mañana.'
-        });
-      }
-    } else {
-      // Nuevo día, resetear contador
-      await prisma.usuario.update({
-        where: { id: usuario.id },
-        data: { otpAttemptsToday: 0 }
-      });
-    }
-
-    // Eliminar OTP anterior si existe
+    // Eliminar OTPs existentes para este email
     await prisma.otpCode.deleteMany({
-      where: { email: usuario.email }
-    });
-
-    // Generar nuevo OTP
-    const codigo = generateOTP();
-    const expiraEn = new Date(Date.now() + 10 * 60 * 1000);
-
-    await otpRepository.create({
-      email: usuario.email,
-      codigo,
-      tipo: 'PASSWORD_RESET',
-      expiraEn
-    });
-
-    // Actualizar contador de intentos
-    await prisma.usuario.update({
-      where: { id: usuario.id },
-      data: {
-        otpAttemptsToday: { increment: 1 },
-        lastOtpAttemptDate: new Date()
+      where: { 
+        email,
+        tipo: 'PASSWORD_RESET'
       }
     });
 
-    // Enviar email
+    // Generar OTP
+    const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Guardar OTP
+    await prisma.otpCode.create({
+      data: {
+        id: uuidv4(),
+        email,
+        codigo,
+        tipo: 'PASSWORD_RESET',
+        expiraEn: new Date(Date.now() + 10 * 60 * 1000), // 10 minutos
+        usado: false
+      }
+    });
+
+    // Enviar email con el OTP
     const emailService = new EmailService();
-    await emailService.sendOTPEmail(usuario.email, codigo, 'PASSWORD_RESET', usuario.nombre);
+    const emailEnviado = await emailService.sendOTPEmail(
+      email, 
+      codigo, 
+      'PASSWORD_RESET', 
+      user.nombre
+    );
+
+    if (!emailEnviado) {
+      console.error('Error enviando email de recuperación');
+      return res.status(500).json({
+        success: false,
+        message: 'Error enviando el código de recuperación'
+      });
+    }
 
     res.json({
       success: true,
-      message: 'Código de recuperación enviado a tu email'
+      message: 'Código de recuperación enviado exitosamente'
     });
 
   } catch (error) {
@@ -507,10 +504,20 @@ export const forgotPassword = async (req: Request, res: Response) => {
 
 // Resetear contraseña
 export const resetPassword = async (req: Request, res: Response) => {
+  console.log('🔍 [BACKEND] ===== RESET PASSWORD ENDPOINT CALLED =====');
+  console.log('🔍 [BACKEND] Method:', req.method);
+  console.log('🔍 [BACKEND] URL:', req.url);
+  console.log('🔍 [BACKEND] Headers:', req.headers);
+  
   try {
-    // Validar datos con Zod
+    console.log('🔍 [BACKEND] ===== ENTRANDO AL TRY =====');
+    console.log('🔍 [BACKEND] Iniciando reset de contraseña');
+    console.log('🔍 [BACKEND] Datos recibidos:', req.body);
+    
+    // Validar datos de entrada
     const validationResult = resetPasswordSchema.safeParse(req.body);
     if (!validationResult.success) {
+      console.log('🔍 [BACKEND] Error de validación:', validationResult.error.issues);
       return res.status(400).json({
         success: false,
         message: 'Datos de entrada inválidos',
@@ -523,34 +530,71 @@ export const resetPassword = async (req: Request, res: Response) => {
 
     const { email, codigo, newPassword } = validationResult.data;
 
-    // Verificar OTP
-    const otp = await otpRepository.findByEmailAndCode(email, codigo, 'PASSWORD_RESET');
+    // Buscar OTP
+    const otp = await prisma.otpCode.findFirst({
+      where: {
+        email,
+        codigo,
+        tipo: 'PASSWORD_RESET',
+        usado: false,
+        expiraEn: { gt: new Date() }
+      }
+    });
 
     if (!otp) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Código OTP inválido o expirado' 
+      return res.status(400).json({
+        success: false,
+        message: 'Código OTP inválido o expirado'
+      });
+    }
+
+    // Buscar usuario para verificar su estado actual
+    const usuario = await prisma.usuario.findUnique({
+      where: { email }
+    });
+
+    if (!usuario) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
       });
     }
 
     // Hash de la nueva contraseña
     const hashedPassword = await bcrypt.hash(newPassword, 12);
 
-    // Actualizar contraseña
-    await userRepository.update(otp.email, {
-      password: hashedPassword
+    // Determinar si el email estaba verificado previamente
+    const emailEstabaVerificado = usuario.emailVerificado;
+
+    // Actualizar contraseña y verificar email automáticamente (solo si no estaba verificado)
+    await prisma.usuario.update({
+      where: { email },
+      data: { 
+        password: hashedPassword,
+        emailVerificado: true,
+        emailVerificadoAt: emailEstabaVerificado ? usuario.emailVerificadoAt : new Date()
+      }
     });
 
     // Marcar OTP como usado
-    await otpRepository.markAsUsed(otp.id);
+    await prisma.otpCode.update({
+      where: { id: otp.id },
+      data: { usado: true }
+    });
+
+    // Mensaje personalizado según el estado previo
+    const mensaje = emailEstabaVerificado 
+      ? 'Contraseña actualizada exitosamente'
+      : 'Contraseña actualizada exitosamente. Tu email ha sido verificado automáticamente.';
 
     res.json({
       success: true,
-      message: 'Contraseña actualizada exitosamente'
+      message: mensaje
     });
 
   } catch (error) {
-    console.error('Error reseteando contraseña:', error);
+    console.error('🔍 [BACKEND] Error reseteando contraseña:', error);
+    console.error('🔍 [BACKEND] Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
     res.status(500).json({ 
       success: false, 
       message: 'Error interno del servidor' 
@@ -558,11 +602,169 @@ export const resetPassword = async (req: Request, res: Response) => {
   }
 };
 
-// Obtener perfil del usuario
+// Verificar OTP de login
+export const verifyLoginOTP = async (req: Request, res: Response) => {
+  try {
+    const validationResult = verifyOTPSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Datos de entrada inválidos',
+        errors: validationResult.error.issues.map(err => ({
+          field: err.path.join('.'),
+          message: err.message
+        }))
+      });
+    }
+
+    const { email, codigo } = validationResult.data;
+
+    // Buscar OTP válido
+    const otpRecord = await prisma.otpCode.findFirst({
+      where: {
+        email,
+        codigo,
+        tipo: 'LOGIN_VERIFICATION',
+        expiraEn: { gt: new Date() }
+      }
+    });
+
+    if (!otpRecord) {
+      return res.status(400).json({
+        success: false,
+        message: 'Código OTP inválido o expirado'
+      });
+    }
+
+    // Buscar usuario
+    const user = await prisma.usuario.findUnique({
+      where: { email },
+      include: { rol: true }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    // Marcar email como verificado
+    await prisma.usuario.update({
+      where: { email },
+      data: { emailVerificado: true }
+    });
+
+    // Eliminar OTP usado
+    await prisma.otpCode.delete({
+      where: { id: otpRecord.id }
+    });
+
+    // Generar token
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, rol: user.rol.nombre },
+      process.env.JWT_SECRET!,
+      { expiresIn: '24h' }
+    );
+
+    res.json({
+      success: true,
+      message: 'Login exitoso',
+      data: {
+        user: {
+          id: user.id,
+          nombre: user.nombre,
+          email: user.email,
+          rol: user.rol.nombre,
+          emailVerificado: true,
+          enPeriodoPrueba: user.enPeriodoPrueba,
+          diasPruebaRestantes: user.diasPruebaRestantes
+        },
+        token
+      }
+    });
+
+  } catch (error) {
+    console.error('Error verificando OTP de login:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error interno del servidor' 
+    });
+  }
+};
+
+// Verificar OTP después del registro
+export const verifyRegistrationOTP = async (req: Request, res: Response) => {
+  try {
+    const validationResult = verifyOTPSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Datos de entrada inválidos',
+        errors: validationResult.error.issues.map(err => ({
+          field: err.path.join('.'),
+          message: err.message
+        }))
+      });
+    }
+
+    const { email, codigo } = validationResult.data;
+
+    // Buscar OTP válido
+    const otpRecord = await prisma.otpCode.findFirst({
+      where: {
+        email,
+        codigo,
+        tipo: 'EMAIL_VERIFICATION',
+        expiraEn: { gt: new Date() }
+      }
+    });
+
+    if (!otpRecord) {
+      return res.status(400).json({
+        success: false,
+        message: 'Código OTP inválido o expirado'
+      });
+    }
+
+    // Marcar email como verificado
+    await prisma.usuario.update({
+      where: { email },
+      data: { emailVerificado: true }
+    });
+
+    // Eliminar OTP usado
+    await prisma.otpCode.delete({
+      where: { id: otpRecord.id }
+    });
+
+    res.json({
+      success: true,
+      message: 'Email verificado exitosamente'
+    });
+
+  } catch (error) {
+    console.error('Error verificando OTP de registro:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error interno del servidor' 
+    });
+  }
+};
+
+// Obtener perfil
 export const getProfile = async (req: Request, res: Response) => {
   try {
-    const user = req.user;
-
+    const user = (req as any).user;
+    
+    if (!user) {
+      console.error('Error obteniendo perfil: Usuario no autenticado');
+      return res.status(401).json({
+        success: false,
+        message: 'Usuario no autenticado'
+      });
+    }
+    
     res.json({
       success: true,
       data: {
@@ -571,15 +773,9 @@ export const getProfile = async (req: Request, res: Response) => {
         email: user.email,
         telefono: user.telefono,
         rol: user.rol.nombre,
-        emailVerificado: user.emailVerificado,
-        enPeriodoPrueba: user.enPeriodoPrueba,
-        diasPruebaRestantes: user.diasPruebaRestantes,
-        activo: user.activo,
-        createdAt: user.createdAt,
-        lastLoginAt: user.lastLoginAt
+        emailVerificado: user.emailVerificado
       }
     });
-
   } catch (error) {
     console.error('Error obteniendo perfil:', error);
     res.status(500).json({ 
@@ -592,12 +788,10 @@ export const getProfile = async (req: Request, res: Response) => {
 // Logout
 export const logout = async (req: Request, res: Response) => {
   try {
-    // En un sistema más complejo, aquí invalidarías el token
     res.json({
       success: true,
       message: 'Logout exitoso'
     });
-
   } catch (error) {
     console.error('Error en logout:', error);
     res.status(500).json({ 

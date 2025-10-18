@@ -59,7 +59,7 @@ export const asignarMembresia = async (req: Request, res: Response) => {
 // Obtener membresía activa del usuario
 export const obtenerMembresiaActiva = async (req: Request, res: Response) => {
   try {
-    const usuarioId = req.user.id;
+    const usuarioId = (req as any).user.id;
     
     const membresia = await MembresiaService.obtenerMembresiaActiva(usuarioId);
     
@@ -87,7 +87,7 @@ export const obtenerMembresiaActiva = async (req: Request, res: Response) => {
 // Verificar acceso del usuario
 export const verificarAcceso = async (req: Request, res: Response) => {
   try {
-    const usuarioId = req.user.id;
+    const usuarioId = (req as any).user.id;
     
     const acceso = await MembresiaService.verificarAcceso(usuarioId);
     

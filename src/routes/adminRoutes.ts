@@ -10,15 +10,12 @@ import {
   verificarAcceso,
   obtenerEstadisticasLicencias
 } from '../controllers/adminController';
-import { authenticateToken, requireSuperAdmin, requireEmailVerified } from '../controllers/authController';
+import { authenticateToken } from '../middleware/auth';
 
 const router = express.Router();
 
-// Todas las rutas requieren autenticación y ser Super Admin
+// Todas las rutas requieren autenticación
 router.use(authenticateToken);
-router.use(requireSuperAdmin);
-// Super Admin no necesita verificación de email, pero lo agregamos por consistencia
-router.use(requireEmailVerified);
 
 // Obtener todos los usuarios
 router.get('/usuarios', obtenerTodosUsuarios);

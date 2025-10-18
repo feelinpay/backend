@@ -20,8 +20,7 @@ export class TrialService {
           enPeriodoPrueba: true,
           fechaInicioPrueba: fechaInicio,
           diasPruebaRestantes: 3,
-          licenciaActiva: true, // Activar licencia temporalmente
-          fechaExpiracionLicencia: fechaExpiracion
+          // Licencia temporal activada (campo removido)
         }
       });
 
@@ -50,7 +49,7 @@ export class TrialService {
           enPeriodoPrueba: true,
           fechaInicioPrueba: true,
           diasPruebaRestantes: true,
-          fechaExpiracionLicencia: true
+          // fechaExpiracionLicencia removido
         }
       });
 
@@ -64,7 +63,7 @@ export class TrialService {
 
       const ahora = new Date();
       const diasRestantes = usuario.diasPruebaRestantes;
-      const expirado = diasRestantes <= 0 || (usuario.fechaExpiracionLicencia && usuario.fechaExpiracionLicencia < ahora);
+      const expirado = diasRestantes <= 0;
 
       if (expirado) {
         // Desactivar período de prueba
@@ -96,7 +95,7 @@ export class TrialService {
         where: { id: usuarioId },
         data: {
           enPeriodoPrueba: false,
-          licenciaActiva: false,
+          // licenciaActiva removido
           diasPruebaRestantes: 0
         }
       });
@@ -175,7 +174,7 @@ export class TrialService {
           where: {
             enPeriodoPrueba: false,
             fechaInicioPrueba: { not: null },
-            licenciaActiva: false
+            // licenciaActiva removido
           }
         }),
         prisma.usuario.count({
@@ -220,7 +219,7 @@ export class TrialService {
         select: {
           enPeriodoPrueba: true,
           fechaInicioPrueba: true,
-          licenciaActiva: true,
+          // licenciaActiva removido
           rol: true
         }
       });
@@ -233,7 +232,8 @@ export class TrialService {
         return { puede: false, razon: 'Los super administradores no necesitan período de prueba' };
       }
 
-      if (usuario.licenciaActiva && !usuario.enPeriodoPrueba) {
+      // Verificar membresía activa (implementar lógica de membresía)
+      if (!usuario.enPeriodoPrueba) {
         return { puede: false, razon: 'El usuario ya tiene una licencia activa' };
       }
 

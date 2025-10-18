@@ -5,11 +5,21 @@ import {
   checkConnectivity,
   getSystemInfo
 } from '../controllers/systemController';
-import { authenticateToken } from '../controllers/authController';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 
-// Todas las rutas requieren autenticación
+// Endpoint de salud (sin autenticación) - debe ir ANTES del middleware
+router.get('/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Backend funcionando correctamente',
+    timestamp: new Date().toISOString(),
+    status: 'healthy'
+  });
+});
+
+// Todas las demás rutas requieren autenticación
 router.use(authenticateToken);
 
 // Verificación del sistema

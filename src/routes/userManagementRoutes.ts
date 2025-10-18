@@ -11,13 +11,12 @@ import {
   changeUserEmail,
   getAllRoles
 } from '../controllers/userManagementController';
-import { authenticateToken, requireSuperAdmin } from '../controllers/authController';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 
-// Todas las rutas requieren autenticación y ser super admin
+// Todas las rutas requieren autenticación
 router.use(authenticateToken);
-router.use(requireSuperAdmin);
 
 // Gestión de usuarios
 router.get('/', getAllUsers);

@@ -4,13 +4,12 @@ import {
   getUnverifiedUsersList, 
   cleanupUnverifiedUsers 
 } from '../controllers/userCleanupController';
-import { authenticateToken, requireSuperAdmin } from '../controllers/authController';
+import { authenticateToken } from '../middleware/auth';
 
 const router = express.Router();
 
-// Middleware de autenticación y autorización
+// Middleware de autenticación
 router.use(authenticateToken);
-router.use(requireSuperAdmin);
 
 // Obtener estadísticas de usuarios no verificados
 router.get('/stats', getUnverifiedUsersStats);

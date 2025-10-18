@@ -8,7 +8,7 @@ export const AppConfig = {
   server: {
     port: parseInt(process.env.PORT || '3001'),
     nodeEnv: process.env.NODE_ENV || 'development',
-    host: process.env.HOST || 'localhost',
+    host: process.env.HOST || '0.0.0.0', // Escuchar en todas las interfaces
     url: process.env.SERVER_URL || 'http://localhost:3001',
   },
 
@@ -97,7 +97,7 @@ export const AppConfig = {
   // Configuración de CORS
   cors: {
     enabled: process.env.CORS_ENABLED !== 'false',
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: process.env.CORS_ORIGIN || '*', // Permitir todos los orígenes para desarrollo
     credentials: process.env.CORS_CREDENTIALS === 'true',
     methods: process.env.CORS_METHODS || 'GET,HEAD,PUT,PATCH,POST,DELETE',
     allowedHeaders: process.env.CORS_ALLOWED_HEADERS || 'Content-Type,Authorization',

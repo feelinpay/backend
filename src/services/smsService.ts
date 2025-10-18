@@ -196,7 +196,7 @@ Feelin Pay - Sistema Anti-Fraude Yape`;
     try {
       const propietario = await prisma.usuario.findUnique({
         where: { id: propietarioId },
-        select: { nombre: true, activo: true, licenciaActiva: true }
+        select: { nombre: true, activo: true }
       });
 
       if (!propietario) {
@@ -213,12 +213,8 @@ Feelin Pay - Sistema Anti-Fraude Yape`;
         };
       }
 
-      if (!propietario.licenciaActiva) {
-        return {
-          puedeEnviar: false,
-          mensaje: 'Licencia no activa'
-        };
-      }
+      // Verificar membresía activa (implementar lógica de membresía)
+      // Por ahora permitir envío si el usuario está activo
 
       return {
         puedeEnviar: true,

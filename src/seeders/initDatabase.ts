@@ -10,7 +10,7 @@ async function initDatabase() {
     // 1. Limpiar base de datos existente
     console.log('🧹 Limpiando base de datos...');
     await prisma.otpCode.deleteMany();
-    await prisma.licencia.deleteMany();
+    await prisma.membresia.deleteMany();
     await prisma.pago.deleteMany();
     await prisma.empleado.deleteMany();
     await prisma.usuario.deleteMany();
@@ -64,10 +64,10 @@ async function initDatabase() {
       { nombre: 'ver_reportes', descripcion: 'Ver reportes', modulo: 'reportes', accion: 'read' },
       { nombre: 'exportar_reportes', descripcion: 'Exportar reportes', modulo: 'reportes', accion: 'export' },
 
-      // Permisos de licencias
-      { nombre: 'gestionar_licencias', descripcion: 'Gestionar licencias', modulo: 'licencias', accion: 'create' },
-      { nombre: 'ver_licencias', descripcion: 'Ver licencias', modulo: 'licencias', accion: 'read' },
-      { nombre: 'activar_licencias', descripcion: 'Activar licencias', modulo: 'licencias', accion: 'activate' },
+      // Permisos de membresías
+      { nombre: 'gestionar_membresias', descripcion: 'Gestionar membresías', modulo: 'membresias', accion: 'create' },
+      { nombre: 'ver_membresias', descripcion: 'Ver membresías', modulo: 'membresias', accion: 'read' },
+      { nombre: 'activar_membresias', descripcion: 'Activar membresías', modulo: 'membresias', accion: 'activate' },
 
       // Permisos de sistema
       { nombre: 'ver_sistema', descripcion: 'Ver información del sistema', modulo: 'sistema', accion: 'read' },
@@ -220,21 +220,22 @@ async function initDatabase() {
 
     console.log('✅ Pagos creados:', pagos.length);
 
-    // 9. Crear licencia de ejemplo
-    console.log('📄 Creando licencia de ejemplo...');
-    const licencia = await prisma.licencia.create({
+    // 9. Crear membresía de ejemplo
+    console.log('📄 Creando membresía de ejemplo...');
+    const membresia = await prisma.membresia.create({
       data: {
-        codigo: 'LIC-2024-001',
-        propietarioId: propietario.id,
-        tipo: 'PREMIUM',
-        fechaEmision: new Date(),
+        usuarioId: propietario.id,
+        tipo: 'premium',
+        fechaInicio: new Date(),
         fechaExpiracion: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 año
+        diasRestantes: 365,
+        precio: 29.90,
         activa: true,
         activadaAt: new Date(),
       }
     });
 
-    console.log('✅ Licencia creada:', licencia.codigo);
+    console.log('✅ Membresía creada:', membresia.id);
 
     // 10. Crear códigos OTP de ejemplo
     console.log('🔐 Creando códigos OTP de ejemplo...');

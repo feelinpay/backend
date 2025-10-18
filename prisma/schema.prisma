@@ -169,9 +169,9 @@ model Membresia {
 // Modelo simplificado para códigos OTP (solo uno por usuario)
 model OtpCode {
   id          String   @id @default(uuid())
-  email       String   @unique // Solo un OTP activo por email
+  email       String   // Email del usuario
   codigo      String   // Código de 6 dígitos
-  tipo        String   // "EMAIL_VERIFICATION", "PASSWORD_RESET", "EMAIL_CHANGE"
+  tipo        String   // "EMAIL_VERIFICATION", "PASSWORD_RESET", "LOGIN_VERIFICATION"
   expiraEn    DateTime // 10 minutos desde creación
   usado       Boolean  @default(false)
   intentos    Int      @default(0) // Número de intentos fallidos
@@ -180,5 +180,7 @@ model OtpCode {
   // Auditoría
   createdAt   DateTime @default(now())
   
+  // Constraint único por email y tipo
+  @@unique([email, tipo])
   @@map("otp_codes")
 }

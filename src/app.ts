@@ -3,65 +3,34 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { AppConfig } from './config/appConfig';
 
-// Importar middleware de seguridad
-import { generalLimiter, authLimiter, registerLimiter, otpLimiter } from './middleware/rateLimiter';
-import { checkSecurityHeaders, checkBlockedIPs } from './middleware/security';
-
 // Importar rutas
 import authRoutes from './routes/authRoutes';
-import userManagementRoutes from './routes/userManagementRoutes';
-import systemRoutes from './routes/systemRoutes';
-import employeeAccessRoutes from './routes/employeeAccessRoutes';
 import adminRoutes from './routes/adminRoutes';
-import otpStatusRoutes from './routes/otpStatusRoutes';
-import profileRoutes from './routes/profileRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
+import profileRoutes from './routes/profileRoutes';
+import systemRoutes from './routes/systemRoutes';
+import userManagementRoutes from './routes/userManagementRoutes';
 import userCleanupRoutes from './routes/userCleanupRoutes';
 import membresiaRoutes from './routes/membresiaRoutes';
-
-// Importar servicios
-import { Scheduler } from './jobs/scheduler';
+import otpStatusRoutes from './routes/otpStatusRoutes';
+import employeeAccessRoutes from './routes/employeeAccessRoutes';
 
 // Importar middleware de errores
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+
+// Importar scheduler para tareas programadas
+import { Scheduler } from './jobs/scheduler';
 
 dotenv.config();
 
 const app = express();
 
-// Configuración de CORS usando variables de entorno
-app.use(cors({
-  origin: AppConfig.cors.origin,
-  credentials: AppConfig.cors.credentials,
-  methods: AppConfig.cors.methods.split(','),
-  allowedHeaders: AppConfig.cors.allowedHeaders.split(',')
-}));
-
+// Configuración básica
+app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Aplicar middleware de seguridad
-app.use(checkSecurityHeaders);
-app.use(checkBlockedIPs);
-// Importar middlewares de seguridad
-import { sqlInjectionProtection, sanitizeInputs } from './middleware/sqlInjectionProtection';
-
-// Aplicar middlewares de seguridad
-app.use(sqlInjectionProtection);
-app.use(sanitizeInputs);
-app.use(generalLimiter);
-
-// Middleware para obtener IP real (opcional)
-app.use((req, res, next) => {
-  // Obtener IP real si está disponible
-  const realIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
-  if (realIp) {
-    (req as any).realIp = realIp;
-  }
-  next();
-});
-
-// Rutas
+// Rutas básicas
 app.get('/', (req, res) => {
   res.json({ message: 'Backend de Feelin Pay funcionando correctamente 🚀' });
 });
@@ -75,17 +44,18 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// API Routes con rate limiting específico
-app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/users', userManagementRoutes);
-app.use('/api/system', systemRoutes);
-app.use('/api/empleado-access', employeeAccessRoutes);
+
+// API Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/otp-status', otpStatusRoutes);
-app.use('/api/profile', profileRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/system', systemRoutes);
+app.use('/api/user-management', userManagementRoutes);
 app.use('/api/user-cleanup', userCleanupRoutes);
 app.use('/api/membresias', membresiaRoutes);
+app.use('/api/otp-status', otpStatusRoutes);
+app.use('/api/employee-access', employeeAccessRoutes);
 
 // Manejo de errores
 app.use(notFoundHandler);
@@ -97,11 +67,7 @@ const HOST = AppConfig.server.host;
 app.listen(PORT, HOST, () => {
   console.log(`🚀 Servidor backend corriendo en ${AppConfig.server.url}`);
   console.log(`🌍 Entorno: ${AppConfig.server.nodeEnv}`);
-  console.log(`🔐 JWT Secret: ${AppConfig.jwt.secret !== 'jwt_secret_default_change_in_production' ? '✅ Configurado' : '⚠️  No configurado'}`);
-  console.log(`📧 Email: ${AppConfig.email.host ? '✅ Configurado' : '⚠️  No configurado'}`);
-  console.log(`🌐 CORS Origin: ${AppConfig.cors.origin}`);
-  console.log(`🔒 CORS Credentials: ${AppConfig.cors.credentials ? '✅ Habilitado' : '❌ Deshabilitado'}`);
   
-  // Iniciar tareas programadas
+  // Inicializar tareas programadas
   Scheduler.init();
 });

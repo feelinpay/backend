@@ -84,7 +84,7 @@ export const checkSystemStatus = async (req: Request, res: Response) => {
 // Verificar permisos del usuario
 export const checkUserPermissions = async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id;
+    const userId = (req as any).user.id;
 
     const usuario = await prisma.usuario.findUnique({
       where: { id: userId },

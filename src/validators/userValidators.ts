@@ -9,8 +9,8 @@ export const registerUserSchema = z.object({
   
   telefono: z.string()
     .min(9, 'El teléfono debe tener al menos 9 dígitos')
-    .max(15, 'El teléfono no puede exceder 15 dígitos')
-    .regex(/^[0-9+\-\s()]+$/, 'Formato de teléfono inválido'),
+    .max(20, 'El teléfono no puede exceder 20 dígitos')
+    .regex(/^\+?[0-9\-\s()]+$/, 'Formato de teléfono inválido'),
   
   email: z.string()
     .trim() // Eliminar espacios al inicio y final
