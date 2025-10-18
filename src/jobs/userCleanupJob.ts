@@ -1,13 +1,16 @@
 import cron from 'node-cron';
 import { PrismaClient } from '@prisma/client';
+import { getCleanupConfig } from '../config/appConfig';
 
 const prisma = new PrismaClient();
+const cleanupConfig = getCleanupConfig();
 
 export class UserCleanupJob {
   // Limpiar usuarios no verificados después de 7 días
   static init() {
-    // Ejecutar cada día a las 2:00 AM
-    cron.schedule('0 2 * * *', async () => {
+    // Ejecutar cada día según configuración
+    const cronExpression = `0 ${cleanupConfig.dailyResetHour} * * *`;
+    cron.schedule(cronExpression, async () => {
       try {
         console.log('🧹 [User Cleanup] Limpiando usuarios no verificados...');
         
@@ -73,11 +76,11 @@ export class UserCleanupJob {
     errors: number;
   }> {
     try {
-      // Calcular fecha límite (7 días atrás)
+      // Calcular fecha límite según configuración
       const fechaLimite = new Date();
-      fechaLimite.setDate(fechaLimite.getDate() - 7);
+      fechaLimite.setDate(fechaLimite.getDate() - cleanupConfig.unverifiedUserCleanupDays);
 
-      // Buscar usuarios no verificados creados hace más de 7 días
+      // Buscar usuarios no verificados creados hace más de X días
       const usuariosNoVerificados = await prisma.usuario.findMany({
         where: {
           emailVerificado: false,
@@ -145,7 +148,7 @@ export class UserCleanupJob {
     try {
       const ahora = new Date();
       const hace3Dias = new Date(ahora.getTime() - 3 * 24 * 60 * 60 * 1000);
-      const hace7Dias = new Date(ahora.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const hace7Dias = new Date(ahora.getTime() - cleanupConfig.unverifiedUserCleanupDays * 24 * 60 * 60 * 1000);
       const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
 
       const [
@@ -213,7 +216,7 @@ export class UserCleanupJob {
   }> {
     try {
       const ahora = new Date();
-      const hace7Dias = new Date(ahora.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const hace7Dias = new Date(ahora.getTime() - cleanupConfig.unverifiedUserCleanupDays * 24 * 60 * 60 * 1000);
 
       const [usuarios, total] = await Promise.all([
         prisma.usuario.findMany({

@@ -1,4 +1,9 @@
 import { limpiarCodigosExpirados } from '../services/otpService';
+import { PrismaClient } from '@prisma/client';
+import { getCleanupConfig } from '../config/appConfig';
+
+const prisma = new PrismaClient();
+const cleanupConfig = getCleanupConfig();
 
 // Tarea programada para limpiar OTPs y reiniciar intentos
 export class OtpCleanupJob {
@@ -8,7 +13,7 @@ export class OtpCleanupJob {
   static start() {
     console.log('🔄 Iniciando tarea de limpieza OTP...');
     
-    // Limpiar OTPs expirados cada 30 minutos
+    // Limpiar OTPs expirados según configuración
     this.intervalId = setInterval(async () => {
       try {
         console.log('🧹 Ejecutando limpieza de OTPs expirados...');
@@ -16,13 +21,13 @@ export class OtpCleanupJob {
       } catch (error) {
         console.error('Error en limpieza de OTPs:', error);
       }
-    }, 30 * 60 * 1000); // 30 minutos
+    }, cleanupConfig.otpCleanupIntervalMinutes * 60 * 1000);
 
     // Reiniciar intentos diarios cada 24 horas
     setInterval(async () => {
       try {
         console.log('🔄 Ejecutando reinicio de intentos diarios...');
-        // limpiarIntentosDiarios removed - using membership system
+        await this.resetearIntentosDiarios();
       } catch (error) {
         console.error('Error reiniciando intentos diarios:', error);
       }
@@ -45,10 +50,29 @@ export class OtpCleanupJob {
     try {
       console.log('🧹 Ejecutando limpieza manual...');
       await limpiarCodigosExpirados();
-      // limpiarIntentosDiarios removed - using membership system
+      await this.resetearIntentosDiarios();
       console.log('✅ Limpieza manual completada');
     } catch (error) {
       console.error('Error en limpieza manual:', error);
+      throw error;
+    }
+  }
+
+  // Resetear intentos diarios de OTP
+  private static async resetearIntentosDiarios(): Promise<void> {
+    try {
+      const resultado = await prisma.usuario.updateMany({
+        where: {
+          otpAttemptsToday: { gt: 0 }
+        },
+        data: {
+          otpAttemptsToday: 0
+        }
+      });
+
+      console.log(`🔄 Intentos diarios reseteados para ${resultado.count} usuarios`);
+    } catch (error) {
+      console.error('Error reseteando intentos diarios:', error);
       throw error;
     }
   }

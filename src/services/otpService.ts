@@ -1,8 +1,10 @@
 import crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
 import { EmailService } from './emailService';
+import { getOTPConfig } from '../config/appConfig';
 
 const prisma = new PrismaClient();
+const otpConfig = getOTPConfig();
 
 // Generar código OTP de 6 dígitos
 export const generateOTP = (): string => {
@@ -38,11 +40,11 @@ export const verificarLimitesIntentos = async (email: string): Promise<{ permiti
       }
     }
 
-    // Verificar límite de 5 intentos por día
-    if (usuario.otpAttemptsToday >= 5) {
+    // Verificar límite de intentos por día
+    if (usuario.otpAttemptsToday >= otpConfig.maxAttemptsPerDay) {
       return { 
         permitido: false, 
-        mensaje: 'Has excedido el límite de 5 códigos OTP por día. Intenta mañana.' 
+        mensaje: `Has excedido el límite de ${otpConfig.maxAttemptsPerDay} códigos OTP por día. Intenta mañana.` 
       };
     }
 
@@ -69,7 +71,7 @@ export const crearCodigoOTP = async (email: string, tipo: string): Promise<{ cod
 
     // Generar nuevo código
     const codigo = generateOTP();
-    const expiraEn = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
+    const expiraEn = new Date(Date.now() + otpConfig.expirationMinutes * 60 * 1000);
 
     // Crear nuevo OTP
     await prisma.otpCode.create({
@@ -80,7 +82,7 @@ export const crearCodigoOTP = async (email: string, tipo: string): Promise<{ cod
         expiraEn,
         usado: false,
         intentos: 0,
-        maxIntentos: 3
+        maxIntentos: otpConfig.maxVerificationAttempts
       }
     });
 
@@ -129,15 +131,17 @@ export const verificarCodigoOTP = async (email: string, codigo: string, tipo: st
   }
 };
 
-// Marcar código OTP como usado
+// Marcar código OTP como usado y eliminar inmediatamente
 export const marcarCodigoUsado = async (email: string, codigo: string): Promise<void> => {
   try {
-    await prisma.otpCode.updateMany({
-      where: { email, codigo },
-      data: { usado: true }
+    // Eliminar el código inmediatamente después de ser usado
+    await prisma.otpCode.deleteMany({
+      where: { email, codigo }
     });
+    
+    console.log(`🗑️ Código OTP eliminado después de uso: ${email}`);
   } catch (error) {
-    console.error('Error marcando código como usado:', error);
+    console.error('Error eliminando código usado:', error);
     throw error;
   }
 };
