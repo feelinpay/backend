@@ -1,0 +1,184 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:../feelin_pay.db"
+}
+
+// Tabla de roles
+model Rol {
+  id          String   @id @default(uuid())
+  nombre      String   @unique // "super_admin", "propietario", "empleado"
+  descripcion String
+  activo      Boolean  @default(true)
+  
+  // Auditoría
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  usuarios    Usuario[]
+  permisos    RolPermiso[]
+  
+  @@map("roles")
+}
+
+// Tabla de permisos - SISTEMA GRANULAR DE SEGURIDAD
+model Permiso {
+  id          String   @id @default(uuid())
+  nombre      String   @unique // "gestionar_usuarios", "ver_reportes", "registrar_empleados"
+  descripcion String
+  modulo      String   // "usuarios", "reportes", "empleados", "pagos", "licencias"
+  accion      String   @default("read") // "create", "read", "update", "delete", "inhabilitar", "reactivar"
+  activo      Boolean  @default(true)
+  
+  // Auditoría
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  roles       RolPermiso[]
+  
+  @@unique([modulo, accion])
+  @@map("permisos")
+}
+
+// Tabla de relación roles-permisos - CONTROL GRANULAR
+model RolPermiso {
+  id        String   @id @default(uuid())
+  rolId     String
+  permisoId String
+  
+  // Auditoría
+  createdAt DateTime @default(now())
+  
+  rol       Rol      @relation(fields: [rolId], references: [id], onDelete: Cascade)
+  permiso   Permiso  @relation(fields: [permisoId], references: [id], onDelete: Cascade)
+  
+  @@unique([rolId, permisoId])
+  @@map("rol_permisos")
+}
+
+model Usuario {
+  id                  String   @id @default(uuid())
+  nombre              String
+  telefono            String
+  email               String   @unique
+  password            String
+  rolId               String   // Referencia al rol
+  googleSpreadsheetId String   // ID único de Google Sheets para cada usuario
+  activo              Boolean  @default(true)
+  
+  // Sistema de prueba
+  enPeriodoPrueba     Boolean  @default(false)
+  fechaInicioPrueba   DateTime?
+  diasPruebaRestantes  Int      @default(0)
+  
+  // Verificación de email
+  emailVerificado     Boolean  @default(false)
+  emailVerificadoAt   DateTime?
+  
+  // Sistema de intentos OTP (integrado en usuario)
+  otpAttemptsToday    Int      @default(0)
+  lastOtpAttemptDate  DateTime?
+  
+  // Auditoría
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  lastLoginAt         DateTime?
+  
+  // Relaciones
+  rol                 Rol      @relation(fields: [rolId], references: [id])
+  empleados           Empleado[]
+  pagos               Pago[]
+  membresias          Membresia[]
+  
+  // Índices para optimizar consultas
+  @@index([email])
+  @@index([activo])
+  @@index([rolId])
+  @@map("usuarios")
+}
+
+model Empleado {
+  id           String   @id @default(uuid())
+  propietarioId String
+  paisCodigo   String   // Código de país (ej: +51)
+  telefono     String   // Número de teléfono
+  activo       Boolean  @default(true)
+  
+  // Auditoría
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  propietario  Usuario  @relation(fields: [propietarioId], references: [id])
+  
+  @@map("empleados")
+}
+
+model Pago {
+  id                    String   @id @default(uuid())
+  propietarioId         String
+  nombrePagador         String   // Nombre del pagador
+  monto                 Float
+  fecha                 DateTime
+  codigoSeguridad       String   @unique // Código de seguridad de Yape (único)
+  registradoEnSheets    Boolean  @default(false)
+  notificadoEmpleados   Boolean  @default(false)
+  
+  // Campos adicionales
+  numeroTelefono        String?  // Número de teléfono del pagador
+  mensajeOriginal       String?  // Mensaje original de la notificación
+  
+  // Auditoría
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  procesadoAt           DateTime?
+  
+  propietario           Usuario @relation(fields: [propietarioId], references: [id])
+  
+  // Índices para optimizar consultas
+  @@index([propietarioId])
+  @@index([fecha])
+  @@index([registradoEnSheets])
+  @@index([codigoSeguridad])
+  @@map("pagos")
+}
+
+// Membresías mensuales de usuarios
+model Membresia {
+  id              String   @id @default(uuid())
+  usuarioId       String
+  tipo            String   // "basica", "premium", "empresarial"
+  fechaInicio     DateTime
+  fechaExpiracion DateTime
+  activa          Boolean  @default(true)
+  diasRestantes   Int      // Días restantes de la membresía
+  precio          Float    // Precio pagado por la membresía
+  
+  // Auditoría
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  activadaAt      DateTime?
+  
+  usuario         Usuario @relation(fields: [usuarioId], references: [id])
+  
+  @@map("membresias")
+}
+
+// Modelo simplificado para códigos OTP (solo uno por usuario)
+model OtpCode {
+  id          String   @id @default(uuid())
+  email       String   @unique // Solo un OTP activo por email
+  codigo      String   // Código de 6 dígitos
+  tipo        String   // "EMAIL_VERIFICATION", "PASSWORD_RESET", "EMAIL_CHANGE"
+  expiraEn    DateTime // 10 minutos desde creación
+  usado       Boolean  @default(false)
+  intentos    Int      @default(0) // Número de intentos fallidos
+  maxIntentos Int      @default(3) // Máximo 3 intentos
+  
+  // Auditoría
+  createdAt   DateTime @default(now())
+  
+  @@map("otp_codes")
+}

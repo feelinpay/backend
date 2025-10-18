@@ -1,0 +1,50 @@
+{
+  "name": "feelin_pay_backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node dist/app.js",
+    "dev": "npx ts-node src/app.ts",
+    "build": "npx tsc",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "seed": "npx ts-node src/seeders/index.ts",
+    "seed:init": "npx ts-node src/seeders/initDatabase.ts",
+    "test:system": "node test-system.js",
+    "cleanup": "rm test-system.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^6.17.1",
+    "@types/bcrypt": "^6.0.0",
+    "@types/crypto-js": "^4.2.2",
+    "@types/node-cron": "^3.0.11",
+    "@types/nodemailer": "^7.0.2",
+    "@types/uuid": "^10.0.0",
+    "axios": "^1.12.2",
+    "bcrypt": "^6.0.0",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "crypto-js": "^4.2.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "express-validator": "^7.2.1",
+    "jsonwebtoken": "^9.0.2",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^7.0.9",
+    "uuid": "^13.0.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^24.8.1",
+    "prisma": "^6.17.1",
+    "typescript": "^5.9.3"
+  }
+}
