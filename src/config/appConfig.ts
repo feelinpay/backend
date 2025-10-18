@@ -8,6 +8,8 @@ export const AppConfig = {
   server: {
     port: parseInt(process.env.PORT || '3001'),
     nodeEnv: process.env.NODE_ENV || 'development',
+    host: process.env.HOST || 'localhost',
+    url: process.env.SERVER_URL || 'http://localhost:3001',
   },
 
   // Configuración de base de datos
@@ -90,6 +92,15 @@ export const AppConfig = {
     debugMode: process.env.DEBUG_MODE === 'true',
     autoCleanupEnabled: process.env.AUTO_CLEANUP_ENABLED === 'true',
     scheduledJobsEnabled: process.env.SCHEDULED_JOBS_ENABLED === 'true',
+  },
+
+  // Configuración de CORS
+  cors: {
+    enabled: process.env.CORS_ENABLED !== 'false',
+    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    credentials: process.env.CORS_CREDENTIALS === 'true',
+    methods: process.env.CORS_METHODS || 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    allowedHeaders: process.env.CORS_ALLOWED_HEADERS || 'Content-Type,Authorization',
   },
 };
 

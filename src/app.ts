@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { AppConfig } from './config/appConfig';
 
 // Importar middleware de seguridad
 import { generalLimiter, authLimiter, registerLimiter, otpLimiter } from './middleware/rateLimiter';
@@ -28,12 +29,12 @@ dotenv.config();
 
 const app = express();
 
-// Configuración de CORS más segura
+// Configuración de CORS usando variables de entorno
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  origin: AppConfig.cors.origin,
+  credentials: AppConfig.cors.credentials,
+  methods: AppConfig.cors.methods.split(','),
+  allowedHeaders: AppConfig.cors.allowedHeaders.split(',')
 }));
 
 app.use(express.json({ limit: '10mb' }));
@@ -90,12 +91,16 @@ app.use('/api/membresias', membresiaRoutes);
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor backend corriendo en el puerto ${PORT}`);
-  console.log(`🌍 Entorno: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔐 JWT Secret: ${process.env.JWT_SECRET ? '✅ Configurado' : '⚠️  No configurado'}`);
-  console.log(`📧 Email: ${process.env.EMAIL_HOST ? '✅ Configurado' : '⚠️  No configurado'}`);
+const PORT = AppConfig.server.port;
+const HOST = AppConfig.server.host;
+
+app.listen(PORT, HOST, () => {
+  console.log(`🚀 Servidor backend corriendo en ${AppConfig.server.url}`);
+  console.log(`🌍 Entorno: ${AppConfig.server.nodeEnv}`);
+  console.log(`🔐 JWT Secret: ${AppConfig.jwt.secret !== 'jwt_secret_default_change_in_production' ? '✅ Configurado' : '⚠️  No configurado'}`);
+  console.log(`📧 Email: ${AppConfig.email.host ? '✅ Configurado' : '⚠️  No configurado'}`);
+  console.log(`🌐 CORS Origin: ${AppConfig.cors.origin}`);
+  console.log(`🔒 CORS Credentials: ${AppConfig.cors.credentials ? '✅ Habilitado' : '❌ Deshabilitado'}`);
   
   // Iniciar tareas programadas
   Scheduler.init();

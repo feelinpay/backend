@@ -13,8 +13,11 @@ export const registerUserSchema = z.object({
     .regex(/^[0-9+\-\s()]+$/, 'Formato de teléfono inválido'),
   
   email: z.string()
+    .trim() // Eliminar espacios al inicio y final
+    .min(1, 'El email es requerido')
+    .max(100, 'El email no puede exceder 100 caracteres')
     .email('Formato de email inválido')
-    .max(100, 'El email no puede exceder 100 caracteres'),
+    .refine((email) => !email.includes(' '), 'El email no puede contener espacios'),
   
   password: z.string()
     .min(8, 'La contraseña debe tener al menos 8 caracteres')
@@ -30,7 +33,10 @@ export const registerUserSchema = z.object({
 // Validator para login
 export const loginSchema = z.object({
   email: z.string()
-    .email('Formato de email inválido'),
+    .trim() // Eliminar espacios al inicio y final
+    .min(1, 'El email es requerido')
+    .email('Formato de email inválido')
+    .refine((email) => !email.includes(' '), 'El email no puede contener espacios'),
   password: z.string()
     .min(1, 'La contraseña es requerida')
 });
@@ -50,8 +56,11 @@ export const updateUserSchema = z.object({
     .optional(),
   
   email: z.string()
-    .email('Formato de email inválido')
+    .trim() // Eliminar espacios al inicio y final
+    .min(1, 'El email es requerido')
     .max(100, 'El email no puede exceder 100 caracteres')
+    .email('Formato de email inválido')
+    .refine((email) => !email.includes(' '), 'El email no puede contener espacios')
     .optional(),
   
   rolId: z.string().uuid('ID de rol inválido').optional(),
@@ -64,12 +73,19 @@ export const updateUserSchema = z.object({
 // Validator para recuperar contraseña
 export const forgotPasswordSchema = z.object({
   email: z.string()
+    .trim() // Eliminar espacios al inicio y final
+    .min(1, 'El email es requerido')
     .email('Formato de email inválido')
+    .refine((email) => !email.includes(' '), 'El email no puede contener espacios')
 });
 
 // Validator para resetear contraseña
 export const resetPasswordSchema = z.object({
-  email: z.string().email('Formato de email inválido'),
+  email: z.string()
+    .trim() // Eliminar espacios al inicio y final
+    .min(1, 'El email es requerido')
+    .email('Formato de email inválido')
+    .refine((email) => !email.includes(' '), 'El email no puede contener espacios'),
   codigo: z.string().length(6, 'El código debe tener 6 dígitos'),
   newPassword: z.string()
     .min(8, 'La contraseña debe tener al menos 8 caracteres')
@@ -83,7 +99,11 @@ export const resetPasswordSchema = z.object({
 
 // Validator para verificar OTP
 export const verifyOTPSchema = z.object({
-  email: z.string().email('Formato de email inválido'),
+  email: z.string()
+    .trim() // Eliminar espacios al inicio y final
+    .min(1, 'El email es requerido')
+    .email('Formato de email inválido')
+    .refine((email) => !email.includes(' '), 'El email no puede contener espacios'),
   codigo: z.string().length(6, 'El código debe tener 6 dígitos'),
   tipo: z.enum(['EMAIL_VERIFICATION', 'PASSWORD_RESET', 'LOGIN_VERIFICATION'], {
     message: 'Tipo de OTP inválido'
@@ -92,7 +112,11 @@ export const verifyOTPSchema = z.object({
 
 // Validator para reenviar OTP
 export const resendOTPSchema = z.object({
-  email: z.string().email('Formato de email inválido'),
+  email: z.string()
+    .trim() // Eliminar espacios al inicio y final
+    .min(1, 'El email es requerido')
+    .email('Formato de email inválido')
+    .refine((email) => !email.includes(' '), 'El email no puede contener espacios'),
   tipo: z.enum(['EMAIL_VERIFICATION', 'PASSWORD_RESET', 'LOGIN_VERIFICATION'], {
     message: 'Tipo de OTP inválido'
   })
