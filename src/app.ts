@@ -3,17 +3,10 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { AppConfig } from './config/appConfig';
 
-// Importar rutas
-import authRoutes from './routes/authRoutes';
-import adminRoutes from './routes/adminRoutes';
-import dashboardRoutes from './routes/dashboardRoutes';
-import profileRoutes from './routes/profileRoutes';
-import systemRoutes from './routes/systemRoutes';
-import userManagementRoutes from './routes/userManagementRoutes';
-import userCleanupRoutes from './routes/userCleanupRoutes';
-import membresiaRoutes from './routes/membresiaRoutes';
-import otpStatusRoutes from './routes/otpStatusRoutes';
-import employeeAccessRoutes from './routes/employeeAccessRoutes';
+// Importar rutas organizadas por roles
+import publicRoutes from './routes/publicRoutes';
+import ownerRoutes from './routes/ownerRoutes';
+import superAdminRoutes from './routes/superAdminRoutes';
 
 // Importar middleware de errores
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -30,32 +23,31 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Rutas básicas
+// Ruta principal
 app.get('/', (req, res) => {
-  res.json({ message: 'Backend de Feelin Pay funcionando correctamente 🚀' });
-});
-
-// Health check
-app.get('/api/health', (req, res) => {
   res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    version: '1.0.0'
+    message: 'Backend de Feelin Pay funcionando correctamente 🚀',
+    version: '1.0.0',
+    endpoints: {
+      public: '/api/public/*',
+      owner: '/api/owner/*',
+      superAdmin: '/api/super-admin/*'
+    }
   });
 });
 
+// ========================================
+// RUTAS ORGANIZADAS POR ROLES
+// ========================================
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/profile', profileRoutes);
-app.use('/api/system', systemRoutes);
-app.use('/api/user-management', userManagementRoutes);
-app.use('/api/user-cleanup', userCleanupRoutes);
-app.use('/api/membresias', membresiaRoutes);
-app.use('/api/otp-status', otpStatusRoutes);
-app.use('/api/employee-access', employeeAccessRoutes);
+// Rutas públicas (sin autenticación)
+app.use('/api/public', publicRoutes);
+
+// Rutas de propietario (usuarios autenticados)
+app.use('/api/owner', ownerRoutes);
+
+// Rutas de super admin (solo super_admin)
+app.use('/api/super-admin', superAdminRoutes);
 
 // Manejo de errores
 app.use(notFoundHandler);

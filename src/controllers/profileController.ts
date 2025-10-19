@@ -344,3 +344,307 @@ export const getLicenseInfo = async (req: Request, res: Response) => {
     });
   }
 };
+
+// Actualizar solo el nombre del usuario
+export const updateProfileName = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    const { nombre } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Usuario no autenticado'
+      });
+    }
+
+    if (!nombre || nombre.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'El nombre es requerido'
+      });
+    }
+
+    const updatedUser = await userRepository.update(userId, { nombre: nombre.trim() });
+    const { password, ...userProfile } = updatedUser;
+
+    res.json({
+      success: true,
+      message: 'Nombre actualizado exitosamente',
+      data: userProfile
+    });
+  } catch (error) {
+    console.error('Error actualizando nombre:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Actualizar solo el teléfono del usuario
+export const updateProfilePhone = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    const { telefono } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Usuario no autenticado'
+      });
+    }
+
+    if (!telefono || telefono.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'El teléfono es requerido'
+      });
+    }
+
+    const updatedUser = await userRepository.update(userId, { telefono: telefono.trim() });
+    const { password, ...userProfile } = updatedUser;
+
+    res.json({
+      success: true,
+      message: 'Teléfono actualizado exitosamente',
+      data: userProfile
+    });
+  } catch (error) {
+    console.error('Error actualizando teléfono:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Actualizar solo la contraseña del usuario
+export const updateProfilePassword = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Usuario no autenticado'
+      });
+    }
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'La contraseña actual y la nueva contraseña son requeridas'
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'La nueva contraseña debe tener al menos 8 caracteres'
+      });
+    }
+
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    // Verificar contraseña actual
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isCurrentPasswordValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'La contraseña actual es incorrecta'
+      });
+    }
+
+    // Hash de la nueva contraseña
+    const hashedNewPassword = await bcrypt.hash(newPassword, 12);
+    await userRepository.update(userId, { password: hashedNewPassword });
+
+    res.json({
+      success: true,
+      message: 'Contraseña actualizada exitosamente'
+    });
+  } catch (error) {
+    console.error('Error actualizando contraseña:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Solicitar cambio de email
+export const requestEmailChange = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    const { newEmail } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Usuario no autenticado'
+      });
+    }
+
+    if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email inválido'
+      });
+    }
+
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    // Verificar que el nuevo email no esté en uso
+    const existingUser = await userRepository.findByEmail(newEmail);
+    if (existingUser && existingUser.id !== userId) {
+      return res.status(409).json({
+        success: false,
+        message: 'El email ya está en uso por otro usuario'
+      });
+    }
+
+    // Generar OTP para verificar nuevo email
+    const codigo = generateOTP();
+    const expiraEn = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
+
+    await otpRepository.create({
+      email: newEmail,
+      codigo,
+      tipo: 'EMAIL_VERIFICATION',
+      expiraEn,
+    });
+
+    // Enviar email con OTP
+    const emailService = new EmailService();
+    await emailService.sendOTPEmail(newEmail, codigo, 'EMAIL_VERIFICATION', user.nombre);
+
+    res.json({
+      success: true,
+      message: 'Se ha enviado un código de verificación al nuevo email',
+      newEmail
+    });
+  } catch (error) {
+    console.error('Error solicitando cambio de email:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Confirmar cambio de email con OTP
+export const confirmEmailChange = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    const { newEmail, codigo } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Usuario no autenticado'
+      });
+    }
+
+    if (!newEmail || !codigo) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email y código son requeridos'
+      });
+    }
+
+    // Verificar OTP
+    const otp = await otpRepository.findByEmailAndCode(newEmail, codigo, 'EMAIL_VERIFICATION');
+    if (!otp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Código OTP inválido o expirado'
+      });
+    }
+
+    // Actualizar email del usuario
+    const updatedUser = await userRepository.update(userId, { 
+      email: newEmail,
+      emailVerificado: true,
+      emailVerificadoAt: new Date()
+    });
+
+    // Marcar OTP como usado
+    await otpRepository.markAsUsed(otp.id);
+
+    const { password, ...userProfile } = updatedUser;
+
+    res.json({
+      success: true,
+      message: 'Email actualizado exitosamente',
+      data: userProfile
+    });
+  } catch (error) {
+    console.error('Error confirmando cambio de email:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Obtener historial del perfil (simplificado)
+export const getProfileHistory = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Usuario no autenticado'
+      });
+    }
+
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    // Historial simplificado (puedes expandir esto según necesidades)
+    const history = {
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      lastLoginAt: user.lastLoginAt,
+      emailVerificadoAt: user.emailVerificadoAt,
+      cambios: [
+        {
+          fecha: user.createdAt,
+          accion: 'Cuenta creada',
+          descripcion: 'Usuario registrado en el sistema'
+        }
+      ]
+    };
+
+    res.json({
+      success: true,
+      data: history
+    });
+  } catch (error) {
+    console.error('Error obteniendo historial:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};

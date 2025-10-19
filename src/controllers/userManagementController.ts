@@ -605,3 +605,203 @@ export const getUserStats = async (req: Request, res: Response) => {
     });
   }
 };
+
+// Exportar usuarios a CSV (solo super admin)
+export const exportUsers = async (req: Request, res: Response) => {
+  try {
+    const { format = 'csv' } = req.query;
+
+    const usuarios = await prisma.usuario.findMany({
+      include: { rol: true },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (format === 'csv') {
+      // Crear CSV
+      const csvHeader = 'ID,Nombre,Email,Teléfono,Rol,Activo,Email Verificado,En Prueba,Días Prueba,Creado,Último Login\n';
+      const csvData = usuarios.map(user => 
+        `${user.id},${user.nombre},${user.email},${user.telefono},${user.rol?.nombre || 'Sin rol'},${user.activo},${user.emailVerificado},${user.enPeriodoPrueba},${user.diasPruebaRestantes},${user.createdAt.toISOString()},${user.lastLoginAt?.toISOString() || 'Nunca'}\n`
+      ).join('');
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=usuarios.csv');
+      res.send(csvHeader + csvData);
+    } else {
+      // JSON por defecto
+      const usuariosSinPassword = usuarios.map(user => ({
+        id: user.id,
+        nombre: user.nombre,
+        email: user.email,
+        telefono: user.telefono,
+        rol: user.rol?.nombre || 'Sin rol',
+        activo: user.activo,
+        emailVerificado: user.emailVerificado,
+        enPeriodoPrueba: user.enPeriodoPrueba,
+        diasPruebaRestantes: user.diasPruebaRestantes,
+        createdAt: user.createdAt,
+        lastLoginAt: user.lastLoginAt
+      }));
+
+      res.json({
+        success: true,
+        data: usuariosSinPassword
+      });
+    }
+
+  } catch (error) {
+    console.error('Error exportando usuarios:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error interno del servidor' 
+    });
+  }
+};
+
+// Buscar usuarios por múltiples criterios
+export const searchUsers = async (req: Request, res: Response) => {
+  try {
+    const { 
+      query = '', 
+      role = '', 
+      status = '', 
+      verified = '', 
+      trial = '',
+      page = 1, 
+      limit = 20 
+    } = req.query;
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const where: any = {};
+
+    // Búsqueda por texto
+    if (query) {
+      where.OR = [
+        { nombre: { contains: query as string, mode: 'insensitive' } },
+        { email: { contains: query as string, mode: 'insensitive' } },
+        { telefono: { contains: query as string, mode: 'insensitive' } }
+      ];
+    }
+
+    // Filtro por rol
+    if (role) {
+      where.rol = { nombre: role as string };
+    }
+
+    // Filtro por estado
+    if (status === 'active') {
+      where.activo = true;
+    } else if (status === 'inactive') {
+      where.activo = false;
+    }
+
+    // Filtro por verificación de email
+    if (verified === 'true') {
+      where.emailVerificado = true;
+    } else if (verified === 'false') {
+      where.emailVerificado = false;
+    }
+
+    // Filtro por período de prueba
+    if (trial === 'true') {
+      where.enPeriodoPrueba = true;
+    } else if (trial === 'false') {
+      where.enPeriodoPrueba = false;
+    }
+
+    const [usuarios, total] = await Promise.all([
+      prisma.usuario.findMany({
+        where,
+        include: { rol: true },
+        skip,
+        take: Number(limit),
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.usuario.count({ where })
+    ]);
+
+    const usuariosSinPassword = usuarios.map(user => ({
+      id: user.id,
+      nombre: user.nombre,
+      email: user.email,
+      telefono: user.telefono,
+      rol: user.rol?.nombre || 'Sin rol',
+      activo: user.activo,
+      emailVerificado: user.emailVerificado,
+      enPeriodoPrueba: user.enPeriodoPrueba,
+      diasPruebaRestantes: user.diasPruebaRestantes,
+      createdAt: user.createdAt,
+      lastLoginAt: user.lastLoginAt
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        usuarios: usuariosSinPassword,
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total,
+          pages: Math.ceil(total / Number(limit))
+        },
+        filters: {
+          query,
+          role,
+          status,
+          verified,
+          trial
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error buscando usuarios:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error interno del servidor' 
+    });
+  }
+};
+
+// Obtener actividad reciente de usuarios
+export const getRecentActivity = async (req: Request, res: Response) => {
+  try {
+    const { limit = 50 } = req.query;
+
+    // Obtener usuarios que han iniciado sesión recientemente
+    const usuariosRecientes = await prisma.usuario.findMany({
+      where: {
+        lastLoginAt: {
+          not: null
+        }
+      },
+      include: { rol: true },
+      orderBy: { lastLoginAt: 'desc' },
+      take: Number(limit)
+    });
+
+    const actividad = usuariosRecientes.map(user => ({
+      id: user.id,
+      nombre: user.nombre,
+      email: user.email,
+      rol: user.rol?.nombre || 'Sin rol',
+      lastLoginAt: user.lastLoginAt,
+      activo: user.activo,
+      emailVerificado: user.emailVerificado
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        actividad,
+        total: actividad.length
+      }
+    });
+
+  } catch (error) {
+    console.error('Error obteniendo actividad reciente:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error interno del servidor' 
+    });
+  }
+};
