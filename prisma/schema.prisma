@@ -101,24 +101,33 @@ model Usuario {
 }
 
 model Empleado {
-  id           String   @id @default(uuid())
-  propietarioId String
-  paisCodigo   String   // Código de país (ej: +51)
-  telefono     String   // Número de teléfono
-  activo       Boolean  @default(true)
+  id        String   @id @default(uuid())
+  usuarioId String   // ID del usuario (super admin o propietario)
+  nombre    String   // Nombre del empleado
+  telefono  String   // Número de teléfono completo (incluye código de país)
+  activo    Boolean  @default(true)
   
   // Auditoría
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   
-  propietario  Usuario  @relation(fields: [propietarioId], references: [id])
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
   
+  // Relaciones para notificaciones y horarios
+  configuracionNotificacion ConfiguracionNotificacion?
+  horariosLaborales         HorarioLaboral[]
+  breaksLaborales           BreakLaboral[]
+  historialNotificaciones   HistorialNotificacion[]
+  
+  // Índices para optimizar consultas
+  @@index([usuarioId])
+  @@index([activo])
   @@map("empleados")
 }
 
 model Pago {
   id                    String   @id @default(uuid())
-  propietarioId         String
+  usuarioId             String
   nombrePagador         String   // Nombre del pagador
   monto                 Float
   fecha                 DateTime
@@ -135,10 +144,10 @@ model Pago {
   updatedAt             DateTime @updatedAt
   procesadoAt           DateTime?
   
-  propietario           Usuario @relation(fields: [propietarioId], references: [id])
+  usuario               Usuario @relation(fields: [usuarioId], references: [id])
   
   // Índices para optimizar consultas
-  @@index([propietarioId])
+  @@index([usuarioId])
   @@index([fecha])
   @@index([registradoEnSheets])
   @@index([codigoSeguridad])
@@ -164,6 +173,116 @@ model Membresia {
   usuario         Usuario @relation(fields: [usuarioId], references: [id])
   
   @@map("membresias")
+}
+
+// ========================================
+// SISTEMA DE NOTIFICACIONES Y HORARIOS LABORALES
+// ========================================
+
+// Configuración de notificaciones por empleado
+model ConfiguracionNotificacion {
+  id                    String   @id @default(uuid())
+  empleadoId            String   @unique
+  notificacionesActivas Boolean  @default(true)
+  
+  // Zona horaria del empleado
+  zonaHoraria          String   @default("America/Lima")
+  
+  // Configuración de notificaciones
+  notificarPagos       Boolean  @default(true)  // Notificar cuando lleguen pagos
+  notificarRecordatorios Boolean @default(false) // Notificar recordatorios
+  notificarReportes    Boolean  @default(false) // Notificar reportes diarios
+  
+  // Horarios de notificación (opcional - para notificaciones no urgentes)
+  horaInicioNotificaciones String? // "08:00" - Solo notificar después de esta hora
+  horaFinNotificaciones   String? // "20:00" - Solo notificar antes de esta hora
+  
+  // Auditoría
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  // Relación
+  empleado             Empleado @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
+  
+  @@map("configuracion_notificaciones")
+}
+
+// Horarios laborales por día de la semana
+model HorarioLaboral {
+  id           String   @id @default(uuid())
+  empleadoId   String
+  diaSemana    Int      // 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado, 7=Domingo
+  horaInicio   String   // "09:00" formato 24h
+  horaFin      String   // "18:00" formato 24h
+  activo       Boolean  @default(true)
+  
+  // Descripción opcional del horario
+  descripcion  String?  // "Horario matutino", "Turno nocturno", etc.
+  
+  // Auditoría
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relación
+  empleado     Empleado @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
+  
+  // Constraint único por empleado y día
+  @@unique([empleadoId, diaSemana])
+  @@map("horarios_laborales")
+}
+
+// Breaks o descansos laborales por día
+model BreakLaboral {
+  id           String   @id @default(uuid())
+  empleadoId   String
+  diaSemana    Int      // 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado, 7=Domingo
+  horaInicio   String   // "12:00" formato 24h
+  horaFin      String   // "13:00" formato 24h
+  activo       Boolean  @default(true)
+  
+  // Tipo de break
+  tipo         String   @default("ALMUERZO") // "ALMUERZO", "DESCANSO", "CAFE", "OTRO"
+  descripcion  String?  // "Break de almuerzo", "Descanso de 15 min", etc.
+  
+  // Auditoría
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relación
+  empleado     Empleado @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
+  
+  // Constraint único por empleado, día y tipo
+  @@unique([empleadoId, diaSemana, tipo])
+  @@map("breaks_laborales")
+}
+
+// Historial de notificaciones enviadas (para auditoría y control)
+model HistorialNotificacion {
+  id              String   @id @default(uuid())
+  empleadoId      String
+  tipo            String   // "PAGO_RECIBIDO", "RECORDATORIO", "REPORTE_DIARIO", "OTRO"
+  mensaje         String   // Contenido del mensaje enviado
+  telefonoDestino String   // Teléfono al que se envió
+  enviado         Boolean  @default(false)
+  errorEnvio      String?  // Mensaje de error si falló el envío
+  
+  // Metadatos del envío
+  fechaProgramada DateTime // Cuándo se programó enviar
+  fechaEnviado    DateTime? // Cuándo se envió realmente
+  intentosEnvio   Int      @default(0) // Número de intentos de envío
+  
+  // Auditoría
+  createdAt       DateTime @default(now())
+  
+  // Relación
+  empleado        Empleado @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
+  
+  // Índices para optimizar consultas
+  @@index([empleadoId])
+  @@index([tipo])
+  @@index([enviado])
+  @@index([fechaProgramada])
+  @@map("historial_notificaciones")
 }
 
 // Modelo simplificado para códigos OTP (solo uno por usuario)

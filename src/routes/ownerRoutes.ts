@@ -13,6 +13,7 @@ import {
   getProfileHistory
 } from '../controllers/profileController';
 import { getDashboardInfo } from '../controllers/dashboardController';
+import dashboardEmployeeRoutes from './dashboardEmployeeRoutes';
 import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
@@ -41,5 +42,8 @@ router.get('/profile/profile/history', getProfileHistory);
 
 // Dashboard
 router.get('/dashboard', getDashboardInfo);
+
+// Gestión de empleados del dashboard
+router.use('/employees', dashboardEmployeeRoutes);
 
 export default router;

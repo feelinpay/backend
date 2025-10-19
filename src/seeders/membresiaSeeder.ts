@@ -3,12 +3,11 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 export async function seedMembresias() {
-  console.log('🌱 Iniciando seeder de membresías...');
+  console.log('Iniciando seeder de membresías...');
 
   try {
     // Limpiar membresías existentes
     await prisma.membresia.deleteMany();
-    console.log('🧹 Membresías existentes eliminadas');
 
     // Obtener usuarios propietarios
     const usuariosPropietarios = await prisma.usuario.findMany({
@@ -23,8 +22,6 @@ export async function seedMembresias() {
         email: true
       }
     });
-
-    console.log(`📊 Encontrados ${usuariosPropietarios.length} usuarios propietarios`);
 
     // Asignar membresías de prueba a algunos usuarios
     const tiposMembresia = ['basica', 'premium', 'empresarial'];
@@ -50,13 +47,11 @@ export async function seedMembresias() {
           activadaAt: new Date()
         }
       });
-
-      console.log(`✅ Membresía ${tipo} asignada a ${usuario.nombre}`);
     }
 
-    console.log('🎉 Seeder de membresías completado exitosamente');
+    console.log('Seeder de membresías completado exitosamente');
   } catch (error) {
-    console.error('❌ Error en seeder de membresías:', error);
+    console.error('Error en seeder de membresías:', error);
     throw error;
   } finally {
     await prisma.$disconnect();
@@ -67,11 +62,11 @@ export async function seedMembresias() {
 if (require.main === module) {
   seedMembresias()
     .then(() => {
-      console.log('✅ Seeder ejecutado exitosamente');
+      console.log('Seeder ejecutado exitosamente');
       process.exit(0);
     })
     .catch((error) => {
-      console.error('❌ Error ejecutando seeder:', error);
+      console.error('Error ejecutando seeder:', error);
       process.exit(1);
     });
 }

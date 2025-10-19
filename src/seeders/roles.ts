@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 export async function seedRoles() {
   try {
-    console.log('📋 Creando roles del sistema...');
+    console.log('Creando roles del sistema...');
     
     const roles = [
       { 
@@ -55,15 +55,12 @@ export async function seedRoles() {
             activo: true
           }
         });
-        console.log(`✅ Rol creado: ${rol.nombre}`);
-      } else {
-        console.log(`⚠️  Rol ya existe: ${rol.nombre}`);
       }
     }
 
     return true;
   } catch (error) {
-    console.error('❌ Error creando roles:', error);
+    console.error('Error creando roles:', error);
     return false;
   }
 }
@@ -73,14 +70,14 @@ if (require.main === module) {
   seedRoles()
     .then((success) => {
       if (success) {
-        console.log('✅ Seeders de roles completados');
+        console.log('Seeders de roles completados');
       } else {
-        console.log('❌ Error en seeders de roles');
+        console.log('Error en seeders de roles');
       }
       process.exit(success ? 0 : 1);
     })
     .catch((error) => {
-      console.error('💥 Error:', error);
+      console.error('Error:', error);
       process.exit(1);
     });
 }

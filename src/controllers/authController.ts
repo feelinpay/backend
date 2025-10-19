@@ -14,13 +14,9 @@ const prisma = new PrismaClient();
 // Registro de usuario
 export const register = async (req: Request, res: Response) => {
   try {
-    console.log('🔍 [REGISTER] ===== REGISTER ENDPOINT CALLED =====');
-    console.log('🔍 [REGISTER] Body recibido:', req.body);
-    
     // Validar datos de entrada
     const validationResult = registerUserSchema.safeParse(req.body);
     if (!validationResult.success) {
-      console.log('🔍 [REGISTER] Errores de validación:', validationResult.error.issues);
       return res.status(400).json({
         success: false,
         message: 'Datos de entrada inválidos',
@@ -504,20 +500,10 @@ export const forgotPassword = async (req: Request, res: Response) => {
 
 // Resetear contraseña
 export const resetPassword = async (req: Request, res: Response) => {
-  console.log('🔍 [BACKEND] ===== RESET PASSWORD ENDPOINT CALLED =====');
-  console.log('🔍 [BACKEND] Method:', req.method);
-  console.log('🔍 [BACKEND] URL:', req.url);
-  console.log('🔍 [BACKEND] Headers:', req.headers);
-  
   try {
-    console.log('🔍 [BACKEND] ===== ENTRANDO AL TRY =====');
-    console.log('🔍 [BACKEND] Iniciando reset de contraseña');
-    console.log('🔍 [BACKEND] Datos recibidos:', req.body);
-    
     // Validar datos de entrada
     const validationResult = resetPasswordSchema.safeParse(req.body);
     if (!validationResult.success) {
-      console.log('🔍 [BACKEND] Error de validación:', validationResult.error.issues);
       return res.status(400).json({
         success: false,
         message: 'Datos de entrada inválidos',
@@ -593,8 +579,7 @@ export const resetPassword = async (req: Request, res: Response) => {
     });
 
   } catch (error) {
-    console.error('🔍 [BACKEND] Error reseteando contraseña:', error);
-    console.error('🔍 [BACKEND] Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
+    console.error('Error reseteando contraseña:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Error interno del servidor' 

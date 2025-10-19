@@ -88,18 +88,18 @@ async function getUserStats(userId: string) {
   try {
     const [totalPagos, pagosRecientes, empleados] = await Promise.all([
       prisma.pago.count({
-        where: { propietarioId: userId }
+        where: { usuarioId: userId }
       }),
       prisma.pago.count({
         where: {
-          propietarioId: userId,
+          usuarioId: userId,
           createdAt: {
             gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Últimos 7 días
           }
         }
       }),
       prisma.empleado.count({
-        where: { propietarioId: userId }
+        where: { usuarioId: userId }
       })
     ]);
 

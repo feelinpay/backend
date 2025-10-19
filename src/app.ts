@@ -31,7 +31,9 @@ app.get('/', (req, res) => {
     endpoints: {
       public: '/api/public/*',
       owner: '/api/owner/*',
-      superAdmin: '/api/super-admin/*'
+      superAdmin: '/api/super-admin/*',
+      dashboardEmployees: '/api/owner/employees/*',
+      adminEmployees: '/api/super-admin/users/:userId/employees/*'
     }
   });
 });
@@ -57,8 +59,8 @@ const PORT = AppConfig.server.port;
 const HOST = AppConfig.server.host;
 
 app.listen(PORT, HOST, () => {
-  console.log(`🚀 Servidor backend corriendo en ${AppConfig.server.url}`);
-  console.log(`🌍 Entorno: ${AppConfig.server.nodeEnv}`);
+  console.log(`Servidor backend corriendo en ${AppConfig.server.url}`);
+  console.log(`Entorno: ${AppConfig.server.nodeEnv}`);
   
   // Inicializar tareas programadas
   Scheduler.init();

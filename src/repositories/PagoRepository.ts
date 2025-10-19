@@ -19,18 +19,18 @@ export class PagoRepository implements IPagoRepository {
     return pago;
   }
 
-  async findByPropietario(propietarioId: string, page: number = 1, limit: number = 20): Promise<{ pagos: Pago[], total: number }> {
+  async findByPropietario(usuarioId: string, page: number = 1, limit: number = 20): Promise<{ pagos: Pago[], total: number }> {
     const skip = (page - 1) * limit;
 
     const [pagos, total] = await Promise.all([
       this.prisma.pago.findMany({
-        where: { propietarioId },
+        where: { usuarioId },
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' }
       }),
       this.prisma.pago.count({
-        where: { propietarioId }
+        where: { usuarioId }
       })
     ]);
 
@@ -51,8 +51,8 @@ export class PagoRepository implements IPagoRepository {
     });
   }
 
-  async getStats(propietarioId?: string): Promise<{ total: number, montoTotal: number, promedio: number }> {
-    const where = propietarioId ? { propietarioId } : {};
+  async getStats(usuarioId?: string): Promise<{ total: number, montoTotal: number, promedio: number }> {
+    const where = usuarioId ? { usuarioId } : {};
 
     const [total, result] = await Promise.all([
       this.prisma.pago.count({ where }),

@@ -6,15 +6,15 @@ const prisma = new PrismaClient();
 
 export async function seedSuperAdmin() {
   try {
-    console.log('👑 Creando Super Administrador...');
+    console.log('Creando Super Administrador...');
     
     const superAdminRol = await prisma.rol.findUnique({
       where: { nombre: 'super_admin' }
     });
 
     if (!superAdminRol) {
-      console.log('❌ Error: No se encontró el rol de super_admin');
-      console.log('   Ejecuta primero: npm run seed:roles');
+      console.log('Error: No se encontró el rol de super_admin');
+      console.log('Ejecuta primero: npm run seed:roles');
       return false;
     }
 
@@ -24,7 +24,7 @@ export async function seedSuperAdmin() {
     });
 
     if (existingUser) {
-      console.log('⚠️  Usuario ya existe, actualizando a Super Admin...');
+      console.log('Usuario ya existe, actualizando a Super Admin...');
       
       await prisma.usuario.update({
         where: { id: existingUser.id },
@@ -39,7 +39,6 @@ export async function seedSuperAdmin() {
         }
       });
       
-      console.log('✅ Usuario actualizado a Super Administrador');
       return true;
     }
 
@@ -63,15 +62,11 @@ export async function seedSuperAdmin() {
       }
     });
 
-    console.log('✅ Super Administrador creado exitosamente');
-    console.log(`   - ID: ${superAdmin.id}`);
-    console.log(`   - Nombre: ${superAdmin.nombre}`);
-    console.log(`   - Email: ${superAdmin.email}`);
-    console.log(`   - Teléfono: ${superAdmin.telefono}`);
+    console.log('Super Administrador creado exitosamente');
     
     return true;
   } catch (error) {
-    console.error('❌ Error creando Super Admin:', error);
+    console.error('Error creando Super Admin:', error);
     return false;
   }
 }
@@ -81,20 +76,15 @@ if (require.main === module) {
   seedSuperAdmin()
     .then((success) => {
       if (success) {
-        console.log('✅ Seeder de Super Admin completado');
-        console.log('');
-        console.log('🔐 Credenciales de acceso:');
-        console.log('   - Email: davidzapata.dz051099@gmail.com');
-        console.log('   - Contraseña: admin123');
-        console.log('');
-        console.log('⚠️  IMPORTANTE: Cambia esta contraseña después del primer login');
+        console.log('Seeder de Super Admin completado');
+        console.log('Credenciales: davidzapata.dz051099@gmail.com / admin123');
       } else {
-        console.log('❌ Error en seeder de Super Admin');
+        console.log('Error en seeder de Super Admin');
       }
       process.exit(success ? 0 : 1);
     })
     .catch((error) => {
-      console.error('💥 Error:', error);
+      console.error('Error:', error);
       process.exit(1);
     });
 }

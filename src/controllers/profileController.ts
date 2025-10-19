@@ -5,7 +5,12 @@ import { UserRepository } from '../repositories/UserRepository';
 import { OTPRepository } from '../repositories/OTPRepository';
 import { generateOTP } from '../services/otpService';
 import { EmailService } from '../services/emailService';
-import { updateUserSchema } from '../validators/userValidators';
+import { 
+  updateProfileBasicSchema,
+  changeProfilePasswordSchema,
+  requestEmailChangeSchema,
+  confirmEmailChangeSchema
+} from '../validators/userValidators';
 
 const prisma = new PrismaClient();
 const userRepository = new UserRepository(prisma);
@@ -48,7 +53,7 @@ export const getProfile = async (req: Request, res: Response) => {
   }
 };
 
-// Actualizar perfil del usuario
+// Actualizar perfil básico del usuario (nombre, teléfono)
 export const updateProfile = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
@@ -61,7 +66,7 @@ export const updateProfile = async (req: Request, res: Response) => {
     }
 
     // Validar datos con Zod
-    const validationResult = updateUserSchema.safeParse(req.body);
+    const validationResult = updateProfileBasicSchema.safeParse(req.body);
     if (!validationResult.success) {
       return res.status(400).json({
         success: false,
@@ -83,41 +88,7 @@ export const updateProfile = async (req: Request, res: Response) => {
       });
     }
 
-    // Si se está cambiando el email, verificar que no esté en uso
-    if (updateData.email && updateData.email !== currentUser.email) {
-      const existingUser = await userRepository.findByEmail(updateData.email);
-      if (existingUser && existingUser.id !== userId) {
-        return res.status(409).json({
-          success: false,
-          message: 'El email ya está en uso por otro usuario'
-        });
-      }
-
-      // Generar OTP para verificar nuevo email
-      const codigo = generateOTP();
-      const expiraEn = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
-
-      await otpRepository.create({
-        email: updateData.email,
-        codigo,
-        tipo: 'EMAIL_VERIFICATION',
-        expiraEn,
-        // metadata removed - using direct fields
-      });
-
-      // Enviar email con OTP
-      const emailService = new EmailService();
-      await emailService.sendOTPEmail(updateData.email, codigo, 'EMAIL_VERIFICATION', currentUser.nombre);
-
-      return res.json({
-        success: true,
-        message: 'Se ha enviado un código de verificación al nuevo email',
-        requiresOTP: true,
-        newEmail: updateData.email
-      });
-    }
-
-    // Si no hay cambio de email, actualizar directamente
+    // Actualizar solo nombre y teléfono
     const updatedUser = await userRepository.update(userId, updateData);
 
     // Remover datos sensibles
@@ -212,11 +183,10 @@ export const verifyEmailChange = async (req: Request, res: Response) => {
   }
 };
 
-// Cambiar contraseña
+// Cambiar contraseña del perfil
 export const changePassword = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
-    const { currentPassword, newPassword, confirmPassword } = req.body;
 
     if (!userId) {
       return res.status(401).json({
@@ -225,26 +195,20 @@ export const changePassword = async (req: Request, res: Response) => {
       });
     }
 
-    if (!currentPassword || !newPassword || !confirmPassword) {
+    // Validar datos con Zod
+    const validationResult = changeProfilePasswordSchema.safeParse(req.body);
+    if (!validationResult.success) {
       return res.status(400).json({
         success: false,
-        message: 'Todos los campos son requeridos'
+        message: 'Datos de entrada inválidos',
+        errors: validationResult.error.issues.map(err => ({
+          field: err.path.join('.'),
+          message: err.message
+        }))
       });
     }
 
-    if (newPassword !== confirmPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Las contraseñas no coinciden'
-      });
-    }
-
-    if (newPassword.length < 8) {
-      return res.status(400).json({
-        success: false,
-        message: 'La nueva contraseña debe tener al menos 8 caracteres'
-      });
-    }
+    const { currentPassword, newPassword } = validationResult.data;
 
     const user = await userRepository.findById(userId);
     if (!user) {
@@ -484,7 +448,6 @@ export const updateProfilePassword = async (req: Request, res: Response) => {
 export const requestEmailChange = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
-    const { newEmail } = req.body;
 
     if (!userId) {
       return res.status(401).json({
@@ -493,12 +456,20 @@ export const requestEmailChange = async (req: Request, res: Response) => {
       });
     }
 
-    if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+    // Validar datos con Zod
+    const validationResult = requestEmailChangeSchema.safeParse(req.body);
+    if (!validationResult.success) {
       return res.status(400).json({
         success: false,
-        message: 'Email inválido'
+        message: 'Datos de entrada inválidos',
+        errors: validationResult.error.issues.map(err => ({
+          field: err.path.join('.'),
+          message: err.message
+        }))
       });
     }
+
+    const { newEmail } = validationResult.data;
 
     const user = await userRepository.findById(userId);
     if (!user) {
@@ -550,7 +521,6 @@ export const requestEmailChange = async (req: Request, res: Response) => {
 export const confirmEmailChange = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
-    const { newEmail, codigo } = req.body;
 
     if (!userId) {
       return res.status(401).json({
@@ -559,12 +529,20 @@ export const confirmEmailChange = async (req: Request, res: Response) => {
       });
     }
 
-    if (!newEmail || !codigo) {
+    // Validar datos con Zod
+    const validationResult = confirmEmailChangeSchema.safeParse(req.body);
+    if (!validationResult.success) {
       return res.status(400).json({
         success: false,
-        message: 'Email y código son requeridos'
+        message: 'Datos de entrada inválidos',
+        errors: validationResult.error.issues.map(err => ({
+          field: err.path.join('.'),
+          message: err.message
+        }))
       });
     }
+
+    const { newEmail, codigo } = validationResult.data;
 
     // Verificar OTP
     const otp = await otpRepository.findByEmailAndCode(newEmail, codigo, 'EMAIL_VERIFICATION');

@@ -15,7 +15,7 @@ export class EmployeeAccessService {
       const empleado = await prisma.empleado.findUnique({
         where: { id: empleadoId },
         include: {
-          propietario: {
+          usuario: {
             select: {
               id: true,
               activo: true,
@@ -39,7 +39,7 @@ export class EmployeeAccessService {
         };
       }
 
-      if (!empleado.propietario.activo) {
+      if (!empleado.usuario.activo) {
         return {
           canReceive: false,
           reason: 'Propietario desactivado'
@@ -50,7 +50,7 @@ export class EmployeeAccessService {
       if (false) {
         return {
           canReceive: false,
-          reason: 'Licencia del propietario no activa'
+          reason: 'Licencia del usuario no activa'
         };
       }
 
@@ -58,7 +58,7 @@ export class EmployeeAccessService {
       if (false) {
         return {
           canReceive: false,
-          reason: 'Licencia del propietario expirada'
+          reason: 'Licencia del usuario expirada'
         };
       }
 
@@ -66,7 +66,7 @@ export class EmployeeAccessService {
       if (false) { // Costo mínimo por SMS
         return {
           canReceive: false,
-          reason: 'Saldo insuficiente del propietario'
+          reason: 'Saldo insuficiente del usuario'
         };
       }
 
@@ -84,9 +84,9 @@ export class EmployeeAccessService {
   }
 
   /**
-   * Obtener empleados que pueden recibir SMS de un propietario
+   * Obtener empleados que pueden recibir SMS de un usuario
    */
-  static async getEmployeesForSms(propietarioId: string): Promise<{
+  static async getEmployeesForSms(usuarioId: string): Promise<{
     success: boolean;
     empleados?: any[];
     error?: string;
@@ -94,7 +94,7 @@ export class EmployeeAccessService {
     try {
       const empleados = await prisma.empleado.findMany({
         where: {
-          propietarioId,
+          usuarioId,
           activo: true
         },
         select: {
@@ -120,14 +120,14 @@ export class EmployeeAccessService {
   /**
    * Verificar acceso a Google Sheets (solo lectura)
    */
-  static async canAccessGoogleSheets(propietarioId: string): Promise<{
+  static async canAccessGoogleSheets(usuarioId: string): Promise<{
     canAccess: boolean;
     url?: string;
     reason?: string;
   }> {
     try {
-      const propietario = await prisma.usuario.findUnique({
-        where: { id: propietarioId },
+      const usuario = await prisma.usuario.findUnique({
+        where: { id: usuarioId },
         select: {
           id: true,
           activo: true,
@@ -137,14 +137,14 @@ export class EmployeeAccessService {
         }
       });
 
-      if (!propietario) {
+      if (!usuario) {
         return {
           canAccess: false,
           reason: 'Propietario no encontrado'
         };
       }
 
-      if (!propietario.activo) {
+      if (!usuario.activo) {
         return {
           canAccess: false,
           reason: 'Propietario desactivado'
@@ -167,14 +167,14 @@ export class EmployeeAccessService {
         };
       }
 
-      if (!propietario.googleSpreadsheetId) {
+      if (!usuario.googleSpreadsheetId) {
         return {
           canAccess: false,
           reason: 'No se ha creado la hoja de cálculo'
         };
       }
 
-      const url = `https://docs.google.com/spreadsheets/d/${propietario.googleSpreadsheetId}/edit?usp=sharing`;
+      const url = `https://docs.google.com/spreadsheets/d/${usuario.googleSpreadsheetId}/edit?usp=sharing`;
 
       return {
         canAccess: true,
@@ -192,13 +192,13 @@ export class EmployeeAccessService {
   /**
    * Generar enlace de solo lectura para empleados
    */
-  static async generateReadOnlyLink(propietarioId: string): Promise<{
+  static async generateReadOnlyLink(usuarioId: string): Promise<{
     success: boolean;
     url?: string;
     error?: string;
   }> {
     try {
-      const accessCheck = await this.canAccessGoogleSheets(propietarioId);
+      const accessCheck = await this.canAccessGoogleSheets(usuarioId);
       
       if (!accessCheck.canAccess) {
         return {
@@ -234,7 +234,7 @@ export class EmployeeAccessService {
       const empleado = await prisma.empleado.findUnique({
         where: { id: empleadoId },
         include: {
-          propietario: {
+          usuario: {
             select: {
               id: true,
               activo: true,
@@ -259,7 +259,7 @@ export class EmployeeAccessService {
         };
       }
 
-      if (!empleado.propietario.activo) {
+      if (!empleado.usuario.activo) {
         return {
           canAccess: false,
           reason: 'Propietario desactivado'
@@ -270,7 +270,7 @@ export class EmployeeAccessService {
       if (false) {
         return {
           canAccess: false,
-          reason: 'Licencia del propietario no activa'
+          reason: 'Licencia del usuario no activa'
         };
       }
 
@@ -278,7 +278,7 @@ export class EmployeeAccessService {
       if (false) {
         return {
           canAccess: false,
-          reason: 'Licencia del propietario expirada'
+          reason: 'Licencia del usuario expirada'
         };
       }
 
@@ -313,18 +313,18 @@ export class EmployeeAccessService {
         };
       }
 
-      const propietarioId = accessCheck.empleado?.propietarioId;
+      const usuarioId = accessCheck.empleado?.usuarioId;
       
-      if (!propietarioId) {
+      if (!usuarioId) {
         return {
           success: false,
           error: 'Propietario no encontrado'
         };
       }
 
-      // Obtener pagos del propietario
+      // Obtener pagos del usuario
       const whereClause: any = {
-        propietarioId
+        usuarioId
       };
 
       if (fecha) {
@@ -394,9 +394,9 @@ export class EmployeeAccessService {
         };
       }
 
-      const propietarioId = accessCheck.empleado?.propietarioId;
+      const usuarioId = accessCheck.empleado?.usuarioId;
       
-      if (!propietarioId) {
+      if (!usuarioId) {
         return {
           success: false,
           error: 'Propietario no encontrado'
@@ -405,12 +405,12 @@ export class EmployeeAccessService {
 
       // Obtener estadísticas básicas
       const totalPagos = await prisma.pago.count({
-        where: { propietarioId }
+        where: { usuarioId: usuarioId }
       });
 
       const pagosHoy = await prisma.pago.count({
         where: {
-          propietarioId,
+          usuarioId: usuarioId,
           fecha: {
             gte: new Date(new Date().setHours(0, 0, 0, 0)),
             lte: new Date(new Date().setHours(23, 59, 59, 999))
@@ -419,13 +419,13 @@ export class EmployeeAccessService {
       });
 
       const montoTotal = await prisma.pago.aggregate({
-        where: { propietarioId },
+        where: { usuarioId },
         _sum: { monto: true }
       });
 
       const montoHoy = await prisma.pago.aggregate({
         where: {
-          propietarioId,
+          usuarioId,
           fecha: {
             gte: new Date(new Date().setHours(0, 0, 0, 0)),
             lte: new Date(new Date().setHours(23, 59, 59, 999))
@@ -441,7 +441,7 @@ export class EmployeeAccessService {
           pagosHoy,
           montoTotal: montoTotal._sum.monto || 0,
           montoHoy: montoHoy._sum.monto || 0,
-          propietario: accessCheck.empleado?.propietario.nombre
+          usuario: accessCheck.empleado?.usuario.nombre
         }
       };
     } catch (error) {

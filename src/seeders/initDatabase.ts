@@ -5,10 +5,10 @@ const prisma = new PrismaClient();
 
 async function initDatabase() {
   try {
-    console.log('🚀 Iniciando inicialización completa de la base de datos...');
+    console.log('Iniciando inicialización de la base de datos...');
 
     // 1. Limpiar base de datos existente
-    console.log('🧹 Limpiando base de datos...');
+    console.log('Limpiando base de datos...');
     await prisma.otpCode.deleteMany();
     await prisma.membresia.deleteMany();
     await prisma.pago.deleteMany();
@@ -19,7 +19,7 @@ async function initDatabase() {
     await prisma.rol.deleteMany();
 
     // 2. Crear roles
-    console.log('👥 Creando roles...');
+    console.log('Creando roles...');
     const superAdminRole = await prisma.rol.create({
       data: {
         nombre: 'super_admin',
@@ -36,10 +36,8 @@ async function initDatabase() {
       }
     });
 
-    console.log('✅ Roles creados:', superAdminRole.nombre, propietarioRole.nombre);
-
     // 3. Crear permisos del sistema
-    console.log('🔐 Creando permisos del sistema...');
+    console.log('Creando permisos del sistema...');
     const permisos = [
       // Permisos de usuarios
       { nombre: 'gestionar_usuarios', descripcion: 'Gestionar usuarios del sistema', modulo: 'usuarios', accion: 'create' },
@@ -82,10 +80,8 @@ async function initDatabase() {
       permisosCreados.push(permisoCreado);
     }
 
-    console.log('✅ Permisos creados:', permisosCreados.length);
-
     // 4. Asignar permisos a roles
-    console.log('🔗 Asignando permisos a roles...');
+    console.log('Asignando permisos a roles...');
     
     // Super Admin tiene todos los permisos
     for (const permiso of permisosCreados) {
@@ -114,10 +110,8 @@ async function initDatabase() {
       });
     }
 
-    console.log('✅ Permisos asignados a roles');
-
     // 5. Crear usuario super admin
-    console.log('👤 Creando usuario super admin...');
+    console.log('Creando usuario super admin...');
     const hashedPassword = await bcrypt.hash('admin123', 10);
     
     const superAdmin = await prisma.usuario.create({
@@ -136,10 +130,8 @@ async function initDatabase() {
       }
     });
 
-    console.log('✅ Usuario super admin creado:', superAdmin.email);
-
     // 6. Crear usuario propietario de ejemplo
-    console.log('👤 Creando usuario propietario de ejemplo...');
+    console.log('Creando usuario propietario de ejemplo...');
     const propietarioPassword = await bcrypt.hash('propietario123', 10);
     
     const propietario = await prisma.usuario.create({
@@ -158,31 +150,27 @@ async function initDatabase() {
       }
     });
 
-    console.log('✅ Usuario propietario creado:', propietario.email);
-
     // 7. Crear empleados de ejemplo
-    console.log('👥 Creando empleados de ejemplo...');
+    console.log('Creando empleados de ejemplo...');
     const empleados = [
-      { paisCodigo: '+51', telefono: '987654321' },
-      { paisCodigo: '+51', telefono: '987654322' },
-      { paisCodigo: '+51', telefono: '987654323' },
+      { nombre: 'Juan Pérez', telefono: '+51987654321' },
+      { nombre: 'María García', telefono: '+51987654322' },
+      { nombre: 'Carlos López', telefono: '+51987654323' },
     ];
 
     for (const empleado of empleados) {
       await prisma.empleado.create({
         data: {
-          propietarioId: propietario.id,
-          paisCodigo: empleado.paisCodigo,
+          usuarioId: propietario.id,
+          nombre: empleado.nombre,
           telefono: empleado.telefono,
           activo: true,
         }
       });
     }
 
-    console.log('✅ Empleados creados:', empleados.length);
-
     // 8. Crear pagos de ejemplo
-    console.log('💰 Creando pagos de ejemplo...');
+    console.log('Creando pagos de ejemplo...');
     const pagos = [
       {
         nombrePagador: 'María García',
@@ -205,7 +193,7 @@ async function initDatabase() {
     for (const pago of pagos) {
       await prisma.pago.create({
         data: {
-          propietarioId: propietario.id,
+          usuarioId: propietario.id,
           nombrePagador: pago.nombrePagador,
           monto: pago.monto,
           fecha: pago.fecha,
@@ -218,10 +206,8 @@ async function initDatabase() {
       });
     }
 
-    console.log('✅ Pagos creados:', pagos.length);
-
     // 9. Crear membresía de ejemplo
-    console.log('📄 Creando membresía de ejemplo...');
+    console.log('Creando membresía de ejemplo...');
     const membresia = await prisma.membresia.create({
       data: {
         usuarioId: propietario.id,
@@ -235,10 +221,8 @@ async function initDatabase() {
       }
     });
 
-    console.log('✅ Membresía creada:', membresia.id);
-
     // 10. Crear códigos OTP de ejemplo
-    console.log('🔐 Creando códigos OTP de ejemplo...');
+    console.log('Creando códigos OTP de ejemplo...');
     const otpCodes = [
       {
         email: 'davidzapata.dz051099@gmail.com',
@@ -265,24 +249,13 @@ async function initDatabase() {
       });
     }
 
-    console.log('✅ Códigos OTP creados:', otpCodes.length);
-
-    console.log('🎉 ¡Base de datos inicializada completamente!');
-    console.log('\n📋 Resumen:');
-    console.log(`- Roles: 2 (super_admin, propietario)`);
-    console.log(`- Permisos: ${permisosCreados.length}`);
-    console.log(`- Usuarios: 2 (super admin + propietario)`);
-    console.log(`- Empleados: ${empleados.length}`);
-    console.log(`- Pagos: ${pagos.length}`);
-    console.log(`- Licencias: 1`);
-    console.log(`- Códigos OTP: ${otpCodes.length}`);
-    
-    console.log('\n🔑 Credenciales de acceso:');
-    console.log('Super Admin: davidzapata.dz051099@gmail.com / admin123');
+    console.log('Base de datos inicializada completamente!');
+    console.log(`Resumen: ${permisosCreados.length} permisos, 2 usuarios, ${empleados.length} empleados, ${pagos.length} pagos`);
+    console.log('Credenciales: Super Admin: davidzapata.dz051099@gmail.com / admin123');
     console.log('Propietario: juan.perez@ejemplo.com / propietario123');
 
   } catch (error) {
-    console.error('❌ Error inicializando base de datos:', error);
+    console.error('Error inicializando base de datos:', error);
     throw error;
   } finally {
     await prisma.$disconnect();

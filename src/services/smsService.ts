@@ -7,13 +7,13 @@ export class SmsService {
    * Enviar SMS a empleados sobre pago recibido
    */
   static async enviarSmsPago({
-    propietarioId,
+    usuarioId,
     nombrePagador,
     monto,
     codigoSeguridad,
     fechaPago
   }: {
-    propietarioId: string;
+    usuarioId: string;
     nombrePagador: string;
     monto: number;
     codigoSeguridad: string;
@@ -28,7 +28,7 @@ export class SmsService {
       // Obtener empleados del propietario
       const empleados = await prisma.empleado.findMany({
         where: {
-          propietarioId,
+          usuarioId,
           activo: true
         },
         select: {
@@ -48,7 +48,7 @@ export class SmsService {
 
       // Obtener información del propietario
       const propietario = await prisma.usuario.findUnique({
-        where: { id: propietarioId },
+        where: { id: usuarioId },
         select: { nombre: true }
       });
 
@@ -84,14 +84,13 @@ export class SmsService {
 
           if (resultado.success) {
             enviados++;
-            console.log(`✅ SMS enviado a Empleado (${empleado.telefono})`);
           } else {
             errores++;
-            console.error(`❌ Error enviando SMS a Empleado: ${resultado.error}`);
+            console.error(`Error enviando SMS a Empleado: ${resultado.error}`);
           }
         } catch (error) {
           errores++;
-          console.error(`❌ Error enviando SMS a Empleado:`, error);
+          console.error(`Error enviando SMS a Empleado:`, error);
         }
       }
 
@@ -167,11 +166,6 @@ Feelin Pay - Sistema Anti-Fraude Yape`;
   }> {
     try {
       // Simular envío de SMS
-      console.log(`📱 Enviando SMS a ${empleadoNombre}:`);
-      console.log(`   📞 Teléfono: ${telefono}`);
-      console.log(`   📝 Mensaje: ${mensaje.substring(0, 100)}...`);
-      console.log(`   ✅ SMS enviado exitosamente`);
-
       // En un sistema real, aquí integrarías con un proveedor de SMS
       // como Twilio, AWS SNS, o un proveedor local
 
@@ -189,13 +183,13 @@ Feelin Pay - Sistema Anti-Fraude Yape`;
   /**
    * Verificar disponibilidad para SMS (sin saldo)
    */
-  static async verificarDisponibilidadSms(propietarioId: string, cantidadEmpleados: number): Promise<{
+  static async verificarDisponibilidadSms(usuarioId: string, cantidadEmpleados: number): Promise<{
     puedeEnviar: boolean;
     mensaje?: string;
   }> {
     try {
       const propietario = await prisma.usuario.findUnique({
-        where: { id: propietarioId },
+        where: { id: usuarioId },
         select: { nombre: true, activo: true }
       });
 
@@ -232,7 +226,7 @@ Feelin Pay - Sistema Anti-Fraude Yape`;
   /**
    * Obtener historial de SMS enviados
    */
-  static async obtenerHistorialSms(propietarioId: string, limite: number = 50): Promise<{
+  static async obtenerHistorialSms(usuarioId: string, limite: number = 50): Promise<{
     success: boolean;
     historial?: any[];
     error?: string;
@@ -241,7 +235,7 @@ Feelin Pay - Sistema Anti-Fraude Yape`;
       // Obtener pagos con SMS enviados
       const pagosConSms = await prisma.pago.findMany({
         where: {
-          propietarioId,
+          usuarioId,
           notificadoEmpleados: true
         },
         orderBy: { fecha: 'desc' },
@@ -281,14 +275,14 @@ Feelin Pay - Sistema Anti-Fraude Yape`;
   /**
    * Recargar saldo del propietario
    */
-  static async recargarSaldo(propietarioId: string, monto: number): Promise<{
+  static async recargarSaldo(usuarioId: string, monto: number): Promise<{
     success: boolean;
     nuevoSaldo?: number;
     error?: string;
   }> {
     try {
       const propietario = await prisma.usuario.findUnique({
-        where: { id: propietarioId },
+        where: { id: usuarioId },
         select: { id: true, nombre: true }
       });
 
@@ -303,13 +297,9 @@ Feelin Pay - Sistema Anti-Fraude Yape`;
       const nuevoSaldo = 0;
 
       await prisma.usuario.update({
-        where: { id: propietarioId },
+        where: { id: usuarioId },
         data: { }
       });
-
-      console.log(`💰 Saldo recargado para propietario ${propietarioId}:`);
-      console.log(`   - Sistema de saldo no implementado (se maneja en Google Sheets)`);
-      console.log(`   - Recarga simulada: S/ ${monto.toFixed(2)}`);
 
       return {
         success: true,

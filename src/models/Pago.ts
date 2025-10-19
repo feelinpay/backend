@@ -3,7 +3,7 @@
  */
 export interface Pago {
   id: string;
-  propietarioId: string;
+  usuarioId: string;
   nombrePagador: string;
   monto: number;
   fecha: Date;
@@ -28,7 +28,7 @@ export interface Pago {
  * Create Pago DTO
  */
 export interface CreatePagoDto {
-  propietarioId: string;
+  usuarioId: string;
   nombrePagador: string;
   monto: number;
   fecha: Date;

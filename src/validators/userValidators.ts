@@ -121,3 +121,52 @@ export const resendOTPSchema = z.object({
     message: 'Tipo de OTP inválido'
   })
 });
+
+// Validator para actualizar perfil básico (nombre, teléfono)
+export const updateProfileBasicSchema = z.object({
+  nombre: z.string()
+    .min(2, 'El nombre debe tener al menos 2 caracteres')
+    .max(50, 'El nombre no puede exceder 50 caracteres')
+    .regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, 'El nombre solo puede contener letras y espacios')
+    .optional(),
+  
+  telefono: z.string()
+    .min(9, 'El teléfono debe tener al menos 9 dígitos')
+    .max(15, 'El teléfono no puede exceder 15 dígitos')
+    .regex(/^[0-9+\-\s()]+$/, 'Formato de teléfono inválido')
+    .optional()
+});
+
+// Validator para cambio de contraseña en perfil
+export const changeProfilePasswordSchema = z.object({
+  currentPassword: z.string()
+    .min(1, 'La contraseña actual es requerida'),
+  
+  newPassword: z.string()
+    .min(8, 'La nueva contraseña debe tener al menos 8 caracteres')
+    .max(100, 'La nueva contraseña no puede exceder 100 caracteres')
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 'La nueva contraseña debe contener al menos una letra minúscula, una mayúscula y un número')
+});
+
+// Validator para solicitar cambio de email
+export const requestEmailChangeSchema = z.object({
+  newEmail: z.string()
+    .trim()
+    .min(1, 'El nuevo email es requerido')
+    .max(100, 'El email no puede exceder 100 caracteres')
+    .email('Formato de email inválido')
+    .refine((email) => !email.includes(' '), 'El email no puede contener espacios')
+});
+
+// Validator para confirmar cambio de email con OTP
+export const confirmEmailChangeSchema = z.object({
+  newEmail: z.string()
+    .trim()
+    .min(1, 'El email es requerido')
+    .email('Formato de email inválido')
+    .refine((email) => !email.includes(' '), 'El email no puede contener espacios'),
+  
+  codigo: z.string()
+    .length(6, 'El código debe tener 6 dígitos')
+    .regex(/^[0-9]+$/, 'El código debe contener solo números')
+});

@@ -12,26 +12,18 @@ export class UserCleanupJob {
     const cronExpression = `0 ${cleanupConfig.dailyResetHour} * * *`;
     cron.schedule(cronExpression, async () => {
       try {
-        console.log('🧹 [User Cleanup] Limpiando usuarios no verificados...');
+        console.log('Limpiando usuarios no verificados...');
         
         const resultado = await this.cleanupUnverifiedUsers();
         
-        console.log(`✅ [User Cleanup] Limpieza completada:`);
-        console.log(`   - Usuarios eliminados: ${resultado.cleaned}`);
-        console.log(`   - Errores encontrados: ${resultado.errors}`);
-
-        // Log simple (sin auditoría para ahorrar costos)
-        console.log(`📊 [User Cleanup] Estadísticas: ${resultado.cleaned} eliminados, ${resultado.errors} errores`);
+        console.log(`Limpieza completada: ${resultado.cleaned} eliminados, ${resultado.errors} errores`);
 
       } catch (error) {
-        console.error('❌ [User Cleanup] Error al limpiar usuarios:', error);
-        
-        // Log de error simple
-        console.error(`❌ [User Cleanup] Error: ${error.message}`);
+        console.error('Error al limpiar usuarios:', error);
       }
     });
 
-    console.log('✅ [User Cleanup] Job de limpieza de usuarios iniciado');
+    console.log('Job de limpieza de usuarios iniciado');
   }
 
   // Limpiar usuarios no verificados manualmente
@@ -42,12 +34,11 @@ export class UserCleanupJob {
     message: string;
   }> {
     try {
-      console.log('🧹 [User Cleanup Manual] Ejecutando limpieza manual...');
+      console.log('Ejecutando limpieza manual...');
       
       const resultado = await this.cleanupUnverifiedUsers();
       
-      // Log simple (sin auditoría para ahorrar costos)
-      console.log(`📊 [User Cleanup Manual] Estadísticas: ${resultado.cleaned} eliminados, ${resultado.errors} errores`);
+      console.log(`Estadísticas: ${resultado.cleaned} eliminados, ${resultado.errors} errores`);
 
       return {
         success: true,
@@ -56,10 +47,7 @@ export class UserCleanupJob {
         message: `Se eliminaron ${resultado.cleaned} usuarios no verificados con ${resultado.errors} errores`
       };
     } catch (error) {
-      console.error('❌ [User Cleanup Manual] Error:', error);
-      
-      // Log de error simple
-      console.error(`❌ [User Cleanup Manual] Error: ${error.message}`);
+      console.error('Error en limpieza manual:', error);
 
       return {
         success: false,
@@ -102,14 +90,11 @@ export class UserCleanupJob {
       let cleaned = 0;
       let errors = 0;
 
-      console.log(`📊 [User Cleanup] Encontrados ${usuariosNoVerificados.length} usuarios no verificados para eliminar`);
-
       // Eliminar usuarios uno por uno
       for (const usuario of usuariosNoVerificados) {
         try {
           // Verificar que no sea super admin (doble verificación)
           if (usuario.rol?.nombre === 'super_admin') {
-            console.log(`⚠️ [User Cleanup] Saltando super admin: ${usuario.email}`);
             continue;
           }
 
@@ -119,21 +104,17 @@ export class UserCleanupJob {
           });
 
           cleaned++;
-          console.log(`✅ [User Cleanup] Usuario eliminado: ${usuario.email} (${usuario.nombre})`);
-
-          // Log simple (sin auditoría para ahorrar costos)
-          console.log(`📊 [User Cleanup] Usuario eliminado: ${usuario.email} (${usuario.nombre})`);
 
         } catch (error) {
           errors++;
-          console.error(`❌ [User Cleanup] Error eliminando usuario ${usuario.email}:`, error);
+          console.error(`Error eliminando usuario ${usuario.email}:`, error);
         }
       }
 
       return { cleaned, errors };
 
     } catch (error) {
-      console.error('❌ [User Cleanup] Error en limpieza:', error);
+      console.error('Error en limpieza:', error);
       return { cleaned: 0, errors: 1 };
     }
   }
@@ -193,7 +174,7 @@ export class UserCleanupJob {
         unverifiedToday
       };
     } catch (error) {
-      console.error('❌ [User Stats] Error obteniendo estadísticas:', error);
+      console.error('Error obteniendo estadísticas:', error);
       return {
         totalUnverified: 0,
         unverifiedOlderThan7Days: 0,
@@ -253,7 +234,7 @@ export class UserCleanupJob {
         total
       };
     } catch (error) {
-      console.error('❌ [User List] Error obteniendo lista de usuarios:', error);
+      console.error('Error obteniendo lista de usuarios:', error);
       return {
         usuarios: [],
         total: 0
