@@ -210,14 +210,21 @@ async function initDatabase() {
     console.log('Creando membresía de ejemplo...');
     const membresia = await prisma.membresia.create({
       data: {
+        nombre: 'Membresía Premium',
+        meses: 12,
+        precio: 29.90,
+        activa: true
+      }
+    });
+
+    // Crear la relación en MembresiaUsuario
+    await prisma.membresiaUsuario.create({
+      data: {
         usuarioId: propietario.id,
-        tipo: 'premium',
+        membresiaId: membresia.id,
         fechaInicio: new Date(),
         fechaExpiracion: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 año
-        diasRestantes: 365,
-        precio: 29.90,
-        activa: true,
-        activadaAt: new Date(),
+        activa: true
       }
     });
 

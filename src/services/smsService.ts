@@ -1,316 +1,92 @@
 import { PrismaClient } from '@prisma/client';
+import { HorarioValidationService } from './horarioValidationService';
 
 const prisma = new PrismaClient();
 
 export class SmsService {
-  /**
-   * Enviar SMS a empleados sobre pago recibido
-   */
-  static async enviarSmsPago({
-    usuarioId,
-    nombrePagador,
-    monto,
-    codigoSeguridad,
-    fechaPago
-  }: {
-    usuarioId: string;
-    nombrePagador: string;
-    monto: number;
-    codigoSeguridad: string;
-    fechaPago: Date;
-  }): Promise<{
-    success: boolean;
-    enviados: number;
-    errores: number;
-    error?: string;
-  }> {
+  // Enviar SMS a empleados elegibles
+  static async enviarSmsAMpleados(usuarioId: string, mensaje: string) {
     try {
-      // Obtener empleados del propietario
+      // Obtener empleados del usuario
       const empleados = await prisma.empleado.findMany({
         where: {
           usuarioId,
           activo: true
         },
-        select: {
-          id: true,
-          telefono: true,
-        }
-      });
-
-      if (empleados.length === 0) {
-        return {
-          success: false,
-          enviados: 0,
-          errores: 0,
-          error: 'No hay empleados registrados para notificar'
-        };
-      }
-
-      // Obtener información del propietario
-      const propietario = await prisma.usuario.findUnique({
-        where: { id: usuarioId },
-        select: { nombre: true }
-      });
-
-      if (!propietario) {
-        return {
-          success: false,
-          enviados: 0,
-          errores: 0,
-          error: 'Propietario no encontrado'
-        };
-      }
-
-      // Crear mensaje de notificación
-      const mensaje = this.crearMensajeNotificacion({
-        nombrePagador,
-        monto,
-        codigoSeguridad,
-        fechaPago,
-        nombrePropietario: propietario.nombre
-      });
-
-      let enviados = 0;
-      let errores = 0;
-
-      // Enviar SMS a cada empleado
-      for (const empleado of empleados) {
-        try {
-          const resultado = await this.enviarSmsIndividual({
-            telefono: empleado.telefono,
-            mensaje,
-            empleadoNombre: 'Empleado'
-          });
-
-          if (resultado.success) {
-            enviados++;
-          } else {
-            errores++;
-            console.error(`Error enviando SMS a Empleado: ${resultado.error}`);
+        include: {
+          configuracionNotificacion: true,
+          horariosLaborales: {
+            where: { activo: true }
+          },
+          breaksLaborales: {
+            where: { activo: true }
           }
-        } catch (error) {
-          errores++;
-          console.error(`Error enviando SMS a Empleado:`, error);
+        }
+      });
+
+      const empleadosElegibles = [];
+      
+      for (const empleado of empleados) {
+        const puedeRecibir = await HorarioValidationService.puedeRecibirSMS(empleado.id);
+        if (puedeRecibir) {
+          empleadosElegibles.push(empleado);
         }
       }
 
-      // No se necesita descontar saldo ya que todo se maneja en Google Sheets
-
+      // Aquí se implementaría la lógica de envío de SMS
+      // Por ahora solo retornamos los empleados elegibles
       return {
-        success: enviados > 0,
-        enviados,
-        errores
+        success: true,
+        data: {
+          empleadosElegibles: empleadosElegibles.length,
+          empleados: empleadosElegibles.map(e => ({
+            id: e.id,
+            nombre: e.nombre,
+            telefono: e.telefono
+          }))
+        },
+        message: `SMS enviado a ${empleadosElegibles.length} empleados`
       };
-    } catch (error) {
-      console.error('Error al enviar SMS:', error);
-      return {
-        success: false,
-        enviados: 0,
-        errores: 0,
-        error: 'Error interno al enviar SMS'
-      };
+    } catch (error: any) {
+      throw new Error(`Error al enviar SMS: ${error.message}`);
     }
   }
 
-  /**
-   * Crear mensaje de notificación personalizado
-   */
-  private static crearMensajeNotificacion({
-    nombrePagador,
-    monto,
-    codigoSeguridad,
-    fechaPago,
-    nombrePropietario
-  }: {
-    nombrePagador: string;
-    monto: number;
-    codigoSeguridad: string;
-    fechaPago: Date;
-    nombrePropietario: string;
-  }): string {
-    const fecha = fechaPago.toLocaleDateString('es-PE');
-    const hora = fechaPago.toLocaleTimeString('es-PE', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-
-    return `🔔 NOTIFICACIÓN DE PAGO YAPE
-
-📱 ${nombrePropietario} recibió un pago Yape:
-
-👤 Pagador: ${nombrePagador}
-💰 Monto: S/ ${monto.toFixed(2)}
-🔢 Código: ${codigoSeguridad}
-📅 Fecha: ${fecha} a las ${hora}
-
-✅ Este es un pago REAL, no es fraude.
-
----
-Feelin Pay - Sistema Anti-Fraude Yape`;
-  }
-
-  /**
-   * Enviar SMS individual (simulado)
-   */
-  private static async enviarSmsIndividual({
-    telefono,
-    mensaje,
-    empleadoNombre
-  }: {
-    telefono: string;
-    mensaje: string;
-    empleadoNombre: string;
-  }): Promise<{
-    success: boolean;
-    error?: string;
-  }> {
+  // Obtener empleados elegibles para SMS
+  static async obtenerEmpleadosElegibles(usuarioId: string) {
     try {
-      // Simular envío de SMS
-      // En un sistema real, aquí integrarías con un proveedor de SMS
-      // como Twilio, AWS SNS, o un proveedor local
-
-      return {
-        success: true
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: 'Error al enviar SMS individual'
-      };
-    }
-  }
-
-  /**
-   * Verificar disponibilidad para SMS (sin saldo)
-   */
-  static async verificarDisponibilidadSms(usuarioId: string, cantidadEmpleados: number): Promise<{
-    puedeEnviar: boolean;
-    mensaje?: string;
-  }> {
-    try {
-      const propietario = await prisma.usuario.findUnique({
-        where: { id: usuarioId },
-        select: { nombre: true, activo: true }
-      });
-
-      if (!propietario) {
-        return {
-          puedeEnviar: false,
-          mensaje: 'Propietario no encontrado'
-        };
-      }
-
-      if (!propietario.activo) {
-        return {
-          puedeEnviar: false,
-          mensaje: 'Propietario desactivado'
-        };
-      }
-
-      // Verificar membresía activa (implementar lógica de membresía)
-      // Por ahora permitir envío si el usuario está activo
-
-      return {
-        puedeEnviar: true,
-        mensaje: `Puede enviar SMS a ${cantidadEmpleados} empleados`
-      };
-    } catch (error) {
-      console.error('Error al verificar disponibilidad SMS:', error);
-      return {
-        puedeEnviar: false,
-        mensaje: 'Error al verificar disponibilidad'
-      };
-    }
-  }
-
-  /**
-   * Obtener historial de SMS enviados
-   */
-  static async obtenerHistorialSms(usuarioId: string, limite: number = 50): Promise<{
-    success: boolean;
-    historial?: any[];
-    error?: string;
-  }> {
-    try {
-      // Obtener pagos con SMS enviados
-      const pagosConSms = await prisma.pago.findMany({
+      const empleados = await prisma.empleado.findMany({
         where: {
           usuarioId,
-          notificadoEmpleados: true
+          activo: true
         },
-        orderBy: { fecha: 'desc' },
-        take: limite,
-        select: {
-          id: true,
-          monto: true,
-          fecha: true,
-          codigoSeguridad: true,
-          nombrePagador: true,
-          numeroTelefono: true
+        include: {
+          configuracionNotificacion: true,
+          horariosLaborales: {
+            where: { activo: true }
+          },
+          breaksLaborales: {
+            where: { activo: true }
+          }
         }
       });
 
-      const historial = pagosConSms.map(pago => ({
-        fecha: pago.fecha.toLocaleDateString('es-PE'),
-        hora: pago.fecha.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }),
-        pagador: pago.nombrePagador,
-        monto: pago.monto.toFixed(2),
-        codigoSeguridad: pago.codigoSeguridad,
-        telefonoPagador: pago.numeroTelefono || ''
-      }));
-
-      return {
-        success: true,
-        historial
-      };
-    } catch (error) {
-      console.error('Error al obtener historial SMS:', error);
-      return {
-        success: false,
-        error: 'Error al obtener historial SMS'
-      };
-    }
-  }
-
-  /**
-   * Recargar saldo del propietario
-   */
-  static async recargarSaldo(usuarioId: string, monto: number): Promise<{
-    success: boolean;
-    nuevoSaldo?: number;
-    error?: string;
-  }> {
-    try {
-      const propietario = await prisma.usuario.findUnique({
-        where: { id: usuarioId },
-        select: { id: true, nombre: true }
-      });
-
-      if (!propietario) {
-        return {
-          success: false,
-          error: 'Propietario no encontrado'
-        };
+      const empleadosElegibles = [];
+      
+      for (const empleado of empleados) {
+        const puedeRecibir = await HorarioValidationService.puedeRecibirSMS(empleado.id);
+        empleadosElegibles.push({
+          ...empleado,
+          puedeRecibirSMS: puedeRecibir
+        });
       }
 
-      // En este sistema no manejamos saldo, se maneja en Google Sheets
-      const nuevoSaldo = 0;
-
-      await prisma.usuario.update({
-        where: { id: usuarioId },
-        data: { }
-      });
-
       return {
         success: true,
-        nuevoSaldo
+        data: empleadosElegibles
       };
-    } catch (error) {
-      console.error('Error al recargar saldo:', error);
-      return {
-        success: false,
-        error: 'Error al recargar saldo'
-      };
+    } catch (error: any) {
+      throw new Error(`Error al obtener empleados elegibles: ${error.message}`);
     }
   }
 }

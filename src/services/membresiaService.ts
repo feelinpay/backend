@@ -1,216 +1,232 @@
 import { PrismaClient } from '@prisma/client';
+import { CreateMembresiaDto, UpdateMembresiaDto } from '../models/Membresia';
 
 const prisma = new PrismaClient();
 
 export class MembresiaService {
-  // Asignar membresía mensual a usuario
-  static async asignarMembresia(usuarioId: string, tipo: string, precio: number) {
-    const fechaInicio = new Date();
-    const fechaExpiracion = new Date();
-    fechaExpiracion.setMonth(fechaInicio.getMonth() + 1); // 1 mes
-
-    // Desactivar membresías anteriores del usuario
-    await prisma.membresia.updateMany({
-      where: { usuarioId, activa: true },
-      data: { activa: false }
-    });
-
-    // Crear nueva membresía
-    return await prisma.membresia.create({
-      data: {
-        usuarioId,
-        tipo,
-        fechaInicio,
-        fechaExpiracion,
-        diasRestantes: 30, // 30 días por defecto
-        precio
-      },
-      include: {
-        usuario: {
-          select: {
-            id: true,
-            nombre: true,
-            email: true
-          }
+  // Crear nueva membresía
+  static async crearMembresia(data: CreateMembresiaDto) {
+    try {
+      // Verificar si ya existe una membresía con el mismo nombre
+      const membresiaExistente = await prisma.membresia.findFirst({
+        where: {
+          nombre: data.nombre,
+          activa: true
         }
+      });
+
+      if (membresiaExistente) {
+        throw new Error('Ya existe una membresía activa con este nombre');
       }
-    });
-  }
 
-  // Obtener membresía activa de usuario
-  static async obtenerMembresiaActiva(usuarioId: string) {
-    return await prisma.membresia.findFirst({
-      where: {
-        usuarioId,
-        activa: true,
-        fechaExpiracion: { gt: new Date() }
-      }
-    });
-  }
-
-  // Actualizar días restantes de membresías
-  static async actualizarDiasRestantes() {
-    const membresiasActivas = await prisma.membresia.findMany({
-      where: {
-        activa: true,
-        fechaExpiracion: { gt: new Date() }
-      }
-    });
-
-    const hoy = new Date();
-    let actualizadas = 0;
-
-    for (const membresia of membresiasActivas) {
-      const diasRestantes = Math.ceil(
-        (membresia.fechaExpiracion.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24)
-      );
-
-      if (diasRestantes <= 0) {
-        // Desactivar membresía expirada
-        await prisma.membresia.update({
-          where: { id: membresia.id },
-          data: { 
-            activa: false,
-            diasRestantes: 0
-          }
-        });
-      } else {
-        // Actualizar días restantes
-        await prisma.membresia.update({
-          where: { id: membresia.id },
-          data: { diasRestantes }
-        });
-        actualizadas++;
-      }
-    }
-
-    return { actualizadas, expiradas: membresiasActivas.length - actualizadas };
-  }
-
-  // Verificar si usuario tiene acceso (membresía activa o período de prueba)
-  static async verificarAcceso(usuarioId: string): Promise<{
-    tieneAcceso: boolean;
-    tipoAcceso: 'membresia' | 'prueba' | 'sin_acceso';
-    diasRestantes: number;
-    mensaje?: string;
-  }> {
-    const usuario = await prisma.usuario.findUnique({
-      where: { id: usuarioId },
-      include: {
-        membresias: {
-          where: { activa: true },
-          orderBy: { fechaExpiracion: 'desc' },
-          take: 1
+      const membresia = await prisma.membresia.create({
+        data: {
+          nombre: data.nombre,
+          meses: data.meses,
+          precio: data.precio,
+          activa: data.activa ?? true
         }
+      });
+
+      return {
+        success: true,
+        data: membresia,
+        message: 'Membresía creada exitosamente'
+      };
+    } catch (error: any) {
+      throw new Error(`Error al crear membresía: ${error.message}`);
+    }
+  }
+
+  // Obtener todas las membresías con paginación y filtros
+  static async obtenerMembresias(page: number = 1, limit: number = 10, activa?: boolean, search?: string) {
+    try {
+      const skip = (page - 1) * limit;
+      
+      const where: any = {};
+      
+      if (activa !== undefined) {
+        where.activa = activa;
       }
-    });
-
-    if (!usuario) {
-      return {
-        tieneAcceso: false,
-        tipoAcceso: 'sin_acceso',
-        diasRestantes: 0,
-        mensaje: 'Usuario no encontrado'
-      };
-    }
-
-    // Super Admin tiene acceso ilimitado
-    if (usuario.rolId === 'super_admin') {
-      return {
-        tieneAcceso: true,
-        tipoAcceso: 'membresia',
-        diasRestantes: 999999,
-        mensaje: 'Acceso ilimitado (Super Admin)'
-      };
-    }
-
-    // Verificar membresía activa
-    if (usuario.membresias.length > 0) {
-      const membresia = usuario.membresias[0];
-      const diasRestantes = Math.ceil(
-        (membresia.fechaExpiracion.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-      );
-
-      if (diasRestantes > 0) {
-        return {
-          tieneAcceso: true,
-          tipoAcceso: 'membresia',
-          diasRestantes,
-          mensaje: `Membresía ${membresia.tipo} activa`
+      
+      if (search) {
+        where.nombre = {
+          contains: search,
+          mode: 'insensitive'
         };
       }
-    }
 
-    // Verificar período de prueba
-    if (usuario.enPeriodoPrueba && usuario.diasPruebaRestantes > 0) {
+      const [membresias, total] = await Promise.all([
+        prisma.membresia.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: {
+            createdAt: 'desc'
+          }
+        }),
+        prisma.membresia.count({ where })
+      ]);
+
       return {
-        tieneAcceso: true,
-        tipoAcceso: 'prueba',
-        diasRestantes: usuario.diasPruebaRestantes,
-        mensaje: 'Período de prueba activo'
+        success: true,
+        data: {
+          membresias,
+          pagination: {
+            page,
+            limit,
+            total,
+            pages: Math.ceil(total / limit)
+          }
+        }
       };
+    } catch (error: any) {
+      throw new Error(`Error al obtener membresías: ${error.message}`);
     }
-
-    return {
-      tieneAcceso: false,
-      tipoAcceso: 'sin_acceso',
-      diasRestantes: 0,
-      mensaje: 'Sin membresía activa ni período de prueba'
-    };
   }
 
-  // Obtener estadísticas de membresías
-  static async obtenerEstadisticas() {
-    const [
-      totalMembresias,
-      membresiasActivas,
-      membresiasExpiradas
-    ] = await Promise.all([
-      prisma.membresia.count(),
-      prisma.membresia.count({
-        where: {
-          activa: true,
-          fechaExpiracion: { gt: new Date() }
+  // Obtener membresía por ID
+  static async obtenerMembresiaPorId(id: string) {
+    try {
+      const membresia = await prisma.membresia.findUnique({
+        where: { id },
+        include: {
+          usuarios: {
+            where: { activa: true },
+            include: {
+              usuario: {
+                select: {
+                  id: true,
+                  nombre: true,
+                  email: true
+                }
+              }
+            }
+          }
         }
-      }),
-      prisma.membresia.count({
-        where: {
-          OR: [
-            { activa: false },
-            { fechaExpiracion: { lte: new Date() } }
-          ]
-        }
-      })
-    ]);
+      });
 
-    return {
-      totalMembresias,
-      membresiasActivas,
-      membresiasExpiradas
-    };
-  }
-
-  // Obtener tipos de membresía disponibles
-  static obtenerTiposMembresia() {
-    return [
-      {
-        tipo: 'basica',
-        descripcion: 'Membresía básica - 30 días',
-        precio: 29.90,
-        duracionDias: 30
-      },
-      {
-        tipo: 'premium',
-        descripcion: 'Membresía premium - 30 días con funciones avanzadas',
-        precio: 59.90,
-        duracionDias: 30
-      },
-      {
-        tipo: 'empresarial',
-        descripcion: 'Membresía empresarial - 30 días con soporte prioritario',
-        precio: 99.90,
-        duracionDias: 30
+      if (!membresia) {
+        throw new Error('Membresía no encontrada');
       }
-    ];
+
+      return {
+        success: true,
+        data: membresia
+      };
+    } catch (error: any) {
+      throw new Error(`Error al obtener membresía: ${error.message}`);
+    }
+  }
+
+  // Actualizar membresía
+  static async actualizarMembresia(id: string, data: UpdateMembresiaDto) {
+    try {
+      // Verificar si la membresía existe
+      const membresiaExistente = await prisma.membresia.findUnique({
+        where: { id }
+      });
+
+      if (!membresiaExistente) {
+        throw new Error('Membresía no encontrada');
+      }
+
+      // Si se está cambiando el nombre, verificar que no exista otra con el mismo nombre
+      if (data.nombre && data.nombre !== membresiaExistente.nombre) {
+        const nombreExistente = await prisma.membresia.findFirst({
+          where: {
+            nombre: data.nombre,
+            activa: true,
+            id: { not: id }
+          }
+        });
+
+        if (nombreExistente) {
+          throw new Error('Ya existe una membresía activa con este nombre');
+        }
+      }
+
+      const membresia = await prisma.membresia.update({
+        where: { id },
+        data: {
+          ...data,
+          updatedAt: new Date()
+        }
+      });
+
+      return {
+        success: true,
+        data: membresia,
+        message: 'Membresía actualizada exitosamente'
+      };
+    } catch (error: any) {
+      throw new Error(`Error al actualizar membresía: ${error.message}`);
+    }
+  }
+
+  // Eliminar membresía (soft delete)
+  static async eliminarMembresia(id: string) {
+    try {
+      // Verificar si la membresía existe
+      const membresiaExistente = await prisma.membresia.findUnique({
+        where: { id },
+        include: {
+          usuarios: {
+            where: { activa: true }
+          }
+        }
+      });
+
+      if (!membresiaExistente) {
+        throw new Error('Membresía no encontrada');
+      }
+
+      // Verificar si tiene usuarios activos
+      if (membresiaExistente.usuarios.length > 0) {
+        throw new Error('No se puede eliminar una membresía que tiene usuarios activos');
+      }
+
+      // Soft delete - desactivar
+      const membresia = await prisma.membresia.update({
+        where: { id },
+        data: {
+          activa: false,
+          updatedAt: new Date()
+        }
+      });
+
+      return {
+        success: true,
+        data: membresia,
+        message: 'Membresía eliminada exitosamente'
+      };
+    } catch (error: any) {
+      throw new Error(`Error al eliminar membresía: ${error.message}`);
+    }
+  }
+
+  // Obtener membresías activas (para dropdowns)
+  static async obtenerMembresiasActivas() {
+    try {
+      const membresias = await prisma.membresia.findMany({
+        where: { activa: true },
+        select: {
+          id: true,
+          nombre: true,
+          meses: true,
+          precio: true
+        },
+        orderBy: {
+          nombre: 'asc'
+        }
+      });
+
+      return {
+        success: true,
+        data: membresias
+      };
+    } catch (error: any) {
+      throw new Error(`Error al obtener membresías activas: ${error.message}`);
+    }
   }
 }

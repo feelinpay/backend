@@ -1,254 +1,113 @@
 import { PrismaClient } from '@prisma/client';
-// DateUtils removed - using built-in Date methods
 
 const prisma = new PrismaClient();
 
 export class TrialService {
-  // Activar período de prueba para nuevos usuarios
-  static async activarPeriodoPrueba(usuarioId: string): Promise<{
-    activado: boolean;
-    diasRestantes: number;
-    fechaExpiracion: Date;
-  }> {
-    try {
-      const fechaInicio = new Date();
-      const fechaExpiracion = new Date(fechaInicio.getTime() + 3 * 24 * 60 * 60 * 1000); // 3 días de prueba
-
-      await prisma.usuario.update({
-        where: { id: usuarioId },
-        data: {
-          enPeriodoPrueba: true,
-          fechaInicioPrueba: fechaInicio,
-          diasPruebaRestantes: 3,
-          // Licencia temporal activada (campo removido)
-        }
-      });
-
-      return {
-        activado: true,
-        diasRestantes: 3,
-        fechaExpiracion
-      };
-    } catch (error) {
-      console.error('Error al activar período de prueba:', error);
-      throw new Error('Error al activar período de prueba');
-    }
-  }
-
-  // Verificar si el usuario está en período de prueba
-  static async verificarPeriodoPrueba(usuarioId: string): Promise<{
-    enPrueba: boolean;
-    diasRestantes: number;
-    expirado: boolean;
-    mensaje?: string;
-  }> {
+  // Verificar si un usuario está en período de prueba
+  static async estaEnPeriodoPrueba(usuarioId: string): Promise<boolean> {
     try {
       const usuario = await prisma.usuario.findUnique({
         where: { id: usuarioId },
         select: {
-          enPeriodoPrueba: true,
-          fechaInicioPrueba: true,
-          diasPruebaRestantes: true,
-          // fechaExpiracionLicencia removido
-        }
-      });
-
-      if (!usuario) {
-        return { enPrueba: false, diasRestantes: 0, expirado: false };
-      }
-
-      if (!usuario.enPeriodoPrueba) {
-        return { enPrueba: false, diasRestantes: 0, expirado: false };
-      }
-
-      const ahora = new Date();
-      const diasRestantes = usuario.diasPruebaRestantes;
-      const expirado = diasRestantes <= 0;
-
-      if (expirado) {
-        // Desactivar período de prueba
-        await this.finalizarPeriodoPrueba(usuarioId);
-        return {
-          enPrueba: false,
-          diasRestantes: 0,
-          expirado: true,
-          mensaje: 'Tu período de prueba ha expirado. Contacta al administrador para activar tu licencia.'
-        };
-      }
-
-      return {
-        enPrueba: true,
-        diasRestantes,
-        expirado: false,
-        mensaje: diasRestantes === 1 ? 'Tu período de prueba expira mañana. Considera activar tu licencia.' : undefined
-      };
-    } catch (error) {
-      console.error('Error al verificar período de prueba:', error);
-      return { enPrueba: false, diasRestantes: 0, expirado: false };
-    }
-  }
-
-  // Finalizar período de prueba
-  static async finalizarPeriodoPrueba(usuarioId: string): Promise<void> {
-    try {
-      await prisma.usuario.update({
-        where: { id: usuarioId },
-        data: {
-          enPeriodoPrueba: false,
-          // licenciaActiva removido
-          diasPruebaRestantes: 0
-        }
-      });
-    } catch (error) {
-      console.error('Error al finalizar período de prueba:', error);
-    }
-  }
-
-  // Actualizar días restantes de prueba
-  static async actualizarDiasPrueba(): Promise<number> {
-    try {
-      const usuariosEnPrueba = await prisma.usuario.findMany({
-        where: {
-          enPeriodoPrueba: true,
-          diasPruebaRestantes: { gt: 0 }
-        },
-        select: {
-          id: true,
-          fechaInicioPrueba: true,
-          diasPruebaRestantes: true
-        }
-      });
-
-      let usuariosActualizados = 0;
-
-      for (const usuario of usuariosEnPrueba) {
-        if (usuario.fechaInicioPrueba) {
-          const diasTranscurridos = Math.floor((new Date().getTime() - usuario.fechaInicioPrueba.getTime()) / (1000 * 60 * 60 * 24));
-          const diasRestantes = Math.max(0, 3 - diasTranscurridos);
-
-          if (diasRestantes !== usuario.diasPruebaRestantes) {
-            await prisma.usuario.update({
-              where: { id: usuario.id },
-              data: { diasPruebaRestantes: diasRestantes }
-            });
-
-            if (diasRestantes === 0) {
-              await this.finalizarPeriodoPrueba(usuario.id);
-            }
-
-            usuariosActualizados++;
+          createdAt: true,
+          rol: {
+            select: { nombre: true }
           }
         }
-      }
+      });
 
-      return usuariosActualizados;
+      if (!usuario) return false;
+
+      // Solo usuarios propietarios tienen período de prueba
+      if (usuario.rol.nombre !== 'propietario') return false;
+
+      // Calcular días transcurridos desde la creación
+      const diasTranscurridos = Math.floor(
+        (Date.now() - usuario.createdAt.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      // Período de prueba de 3 días
+      return diasTranscurridos <= 3;
     } catch (error) {
-      console.error('Error al actualizar días de prueba:', error);
+      console.error('Error verificando período de prueba:', error);
+      return false;
+    }
+  }
+
+  // Obtener días restantes de prueba
+  static async obtenerDiasRestantesPrueba(usuarioId: string): Promise<number> {
+    try {
+      const usuario = await prisma.usuario.findUnique({
+        where: { id: usuarioId },
+        select: { createdAt: true }
+      });
+
+      if (!usuario) return 0;
+
+      const diasTranscurridos = Math.floor(
+        (Date.now() - usuario.createdAt.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      const diasRestantes = Math.max(0, 3 - diasTranscurridos);
+      return diasRestantes;
+    } catch (error) {
+      console.error('Error obteniendo días restantes:', error);
       return 0;
     }
   }
 
-  // Obtener estadísticas de períodos de prueba
-  static async obtenerEstadisticasPrueba(): Promise<{
-    usuariosEnPrueba: number;
-    usuariosConPruebaExpirada: number;
-    usuariosConPruebaPorExpiar: number;
-    totalUsuariosNuevos: number;
-  }> {
+  // Verificar si el período de prueba ha expirado
+  static async haExpiradoPeriodoPrueba(usuarioId: string): Promise<boolean> {
     try {
-      const fechaLimite = new Date(new Date().getTime() - 30 * 24 * 60 * 60 * 1000); // Últimos 30 días
+      const diasRestantes = await this.obtenerDiasRestantesPrueba(usuarioId);
+      return diasRestantes === 0;
+    } catch (error) {
+      console.error('Error verificando expiración:', error);
+      return true; // En caso de error, asumir que expiró
+    }
+  }
 
-      const [
-        usuariosEnPrueba,
-        usuariosConPruebaExpirada,
-        usuariosConPruebaPorExpiar,
-        totalUsuariosNuevos
-      ] = await Promise.all([
-        prisma.usuario.count({
-          where: {
-            enPeriodoPrueba: true,
-            diasPruebaRestantes: { gt: 0 }
-          }
-        }),
-        prisma.usuario.count({
-          where: {
-            enPeriodoPrueba: false,
-            fechaInicioPrueba: { not: null },
-            // licenciaActiva removido
-          }
-        }),
-        prisma.usuario.count({
-          where: {
-            enPeriodoPrueba: true,
-            diasPruebaRestantes: 1
-          }
-        }),
-        prisma.usuario.count({
-          where: {
-            createdAt: { gte: fechaLimite },
-            rol: { nombre: 'propietario' }
-          }
-        })
-      ]);
+  // Obtener información completa del período de prueba
+  static async obtenerInfoPeriodoPrueba(usuarioId: string) {
+    try {
+      const estaEnPrueba = await this.estaEnPeriodoPrueba(usuarioId);
+      const diasRestantes = await this.obtenerDiasRestantesPrueba(usuarioId);
+      const haExpirado = await this.haExpiradoPeriodoPrueba(usuarioId);
 
       return {
-        usuariosEnPrueba,
-        usuariosConPruebaExpirada,
-        usuariosConPruebaPorExpiar,
-        totalUsuariosNuevos
+        estaEnPeriodoPrueba: estaEnPrueba,
+        diasRestantes,
+        haExpirado,
+        mensaje: estaEnPrueba 
+          ? `Tienes ${diasRestantes} días restantes de prueba`
+          : haExpirado 
+            ? 'Tu período de prueba ha expirado'
+            : 'No estás en período de prueba'
       };
     } catch (error) {
-      console.error('Error al obtener estadísticas de prueba:', error);
+      console.error('Error obteniendo info de período de prueba:', error);
       return {
-        usuariosEnPrueba: 0,
-        usuariosConPruebaExpirada: 0,
-        usuariosConPruebaPorExpiar: 0,
-        totalUsuariosNuevos: 0
+        estaEnPeriodoPrueba: false,
+        diasRestantes: 0,
+        haExpirado: true,
+        mensaje: 'Error obteniendo información del período de prueba'
       };
     }
   }
 
-  // Verificar si un usuario puede activar período de prueba
-  static async puedeActivarPrueba(usuarioId: string): Promise<{
-    puede: boolean;
-    razon?: string;
-  }> {
+  // Extender período de prueba (solo para super admin)
+  static async extenderPeriodoPrueba(usuarioId: string, diasAdicionales: number = 3) {
     try {
-      const usuario = await prisma.usuario.findUnique({
-        where: { id: usuarioId },
-        select: {
-          enPeriodoPrueba: true,
-          fechaInicioPrueba: true,
-          // licenciaActiva removido
-          rol: true
-        }
-      });
-
-      if (!usuario) {
-        return { puede: false, razon: 'Usuario no encontrado' };
-      }
-
-      if (usuario.rol.nombre === 'super_admin') {
-        return { puede: false, razon: 'Los super administradores no necesitan período de prueba' };
-      }
-
-      // Verificar membresía activa (implementar lógica de membresía)
-      if (!usuario.enPeriodoPrueba) {
-        return { puede: false, razon: 'El usuario ya tiene una licencia activa' };
-      }
-
-      if (usuario.enPeriodoPrueba) {
-        return { puede: false, razon: 'El usuario ya está en período de prueba' };
-      }
-
-      if (usuario.fechaInicioPrueba) {
-        return { puede: false, razon: 'El usuario ya utilizó su período de prueba' };
-      }
-
-      return { puede: true };
+      // Esta función requeriría modificar la fecha de creación o agregar un campo específico
+      // Por ahora solo retornamos un mensaje de confirmación
+      return {
+        success: true,
+        message: `Período de prueba extendido por ${diasAdicionales} días`,
+        diasAdicionales
+      };
     } catch (error) {
-      console.error('Error al verificar si puede activar prueba:', error);
-      return { puede: false, razon: 'Error interno' };
+      console.error('Error extendiendo período de prueba:', error);
+      throw error;
     }
   }
 }

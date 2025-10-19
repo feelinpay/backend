@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { UserRepository } from '../repositories/UserRepository';
-import { OTPRepository } from '../repositories/OTPRepository';
+import { OtpCodeRepository } from '../repositories/OtpCodeRepository';
 import { generateOTP } from '../services/otpService';
 import { EmailService } from '../services/emailService';
 import { 
@@ -14,7 +14,7 @@ import {
 
 const prisma = new PrismaClient();
 const userRepository = new UserRepository(prisma);
-const otpRepository = new OTPRepository(prisma);
+const otpRepository = new OtpCodeRepository();
 
 // Obtener perfil del usuario autenticado
 export const getProfile = async (req: Request, res: Response) => {
@@ -138,18 +138,21 @@ export const verifyEmailChange = async (req: Request, res: Response) => {
     }
 
     // Verificar OTP
-    const otp = await otpRepository.findByEmailAndCode(email, codigo, 'EMAIL_VERIFICATION');
+    const validacion = await otpRepository.validar({
+      email,
+      codigo,
+      tipo: 'EMAIL_VERIFICATION'
+    });
 
-    if (!otp) {
+    if (!validacion.valido) {
       return res.status(400).json({
         success: false,
-        message: 'Código OTP inválido o expirado'
+        message: 'Código OTP inválido, expirado o ya utilizado'
       });
     }
 
     // Verificar que el OTP pertenece al usuario
-    // metadata removed - using direct fields
-    if (otp.email !== currentUser.email) {
+    if (validacion.codigo?.email !== currentUser.email) {
       return res.status(400).json({
         success: false,
         message: 'Código OTP no válido para este usuario'
@@ -164,7 +167,7 @@ export const verifyEmailChange = async (req: Request, res: Response) => {
     });
 
     // Marcar OTP como usado
-    await otpRepository.markAsUsed(otp.id);
+    await otpRepository.marcarComoUsado(email, 'EMAIL_VERIFICATION');
 
     // Remover datos sensibles
     const { password, ...userProfile } = updatedUser;
@@ -248,7 +251,7 @@ export const changePassword = async (req: Request, res: Response) => {
   }
 };
 
-// Obtener información de licencia del usuario
+// Obtener información de membresía del usuario
 export const getLicenseInfo = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
@@ -272,26 +275,26 @@ export const getLicenseInfo = async (req: Request, res: Response) => {
     // Calcular días restantes
     let diasRestantes = 0;
     let fechaExpiracion = null;
-    let estadoLicencia = 'inactiva';
+    let estadoMembresia = 'inactiva';
 
     // licenciaActiva and fechaExpiracionLicencia removed from schema - using membership system
     if (false) {
       // This logic will be replaced with membership verification
     } else if (user.enPeriodoPrueba && user.diasPruebaRestantes) {
       diasRestantes = user.diasPruebaRestantes;
-      estadoLicencia = 'prueba';
+      estadoMembresia = 'prueba';
     }
 
     // Si es super admin, acceso ilimitado
     if (user.rol?.nombre === 'super_admin') {
       diasRestantes = -1; // -1 indica acceso ilimitado
-      estadoLicencia = 'ilimitado';
+      estadoMembresia = 'ilimitado';
     }
 
     res.json({
       success: true,
       data: {
-        estadoLicencia,
+        estadoMembresia,
         diasRestantes,
         fechaExpiracion,
         enPeriodoPrueba: user.enPeriodoPrueba,
@@ -301,7 +304,7 @@ export const getLicenseInfo = async (req: Request, res: Response) => {
       }
     });
   } catch (error) {
-    console.error('Error obteniendo información de licencia:', error);
+    console.error('Error obteniendo información de membresía:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'
@@ -492,7 +495,7 @@ export const requestEmailChange = async (req: Request, res: Response) => {
     const codigo = generateOTP();
     const expiraEn = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
 
-    await otpRepository.create({
+    await otpRepository.crear({
       email: newEmail,
       codigo,
       tipo: 'EMAIL_VERIFICATION',
@@ -545,11 +548,16 @@ export const confirmEmailChange = async (req: Request, res: Response) => {
     const { newEmail, codigo } = validationResult.data;
 
     // Verificar OTP
-    const otp = await otpRepository.findByEmailAndCode(newEmail, codigo, 'EMAIL_VERIFICATION');
-    if (!otp) {
+    const validacion = await otpRepository.validar({
+      email: newEmail,
+      codigo,
+      tipo: 'EMAIL_VERIFICATION'
+    });
+
+    if (!validacion.valido) {
       return res.status(400).json({
         success: false,
-        message: 'Código OTP inválido o expirado'
+        message: 'Código OTP inválido, expirado o ya utilizado'
       });
     }
 
@@ -561,7 +569,7 @@ export const confirmEmailChange = async (req: Request, res: Response) => {
     });
 
     // Marcar OTP como usado
-    await otpRepository.markAsUsed(otp.id);
+    await otpRepository.marcarComoUsado(newEmail, 'EMAIL_VERIFICATION');
 
     const { password, ...userProfile } = updatedUser;
 

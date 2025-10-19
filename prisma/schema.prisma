@@ -91,7 +91,7 @@ model Usuario {
   rol                 Rol      @relation(fields: [rolId], references: [id])
   empleados           Empleado[]
   pagos               Pago[]
-  membresias          Membresia[]
+  membresias          MembresiaUsuario[]
   
   // Índices para optimizar consultas
   @@index([email])
@@ -117,7 +117,6 @@ model Empleado {
   configuracionNotificacion ConfiguracionNotificacion?
   horariosLaborales         HorarioLaboral[]
   breaksLaborales           BreakLaboral[]
-  historialNotificaciones   HistorialNotificacion[]
   
   // Índices para optimizar consultas
   @@index([usuarioId])
@@ -154,25 +153,48 @@ model Pago {
   @@map("pagos")
 }
 
-// Membresías mensuales de usuarios
+// Catálogo de membresías disponibles
 model Membresia {
   id              String   @id @default(uuid())
-  usuarioId       String
-  tipo            String   // "basica", "premium", "empresarial"
-  fechaInicio     DateTime
-  fechaExpiracion DateTime
+  nombre          String   // "Membresía Básica", "Membresía Premium", etc.
+  meses           Int      // 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 meses
+  precio          Float    // Precio por esta membresía
   activa          Boolean  @default(true)
-  diasRestantes   Int      // Días restantes de la membresía
-  precio          Float    // Precio pagado por la membresía
   
   // Auditoría
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  activadaAt      DateTime?
   
-  usuario         Usuario @relation(fields: [usuarioId], references: [id])
+  // Relación con usuarios que tienen esta membresía
+  usuarios        MembresiaUsuario[]
   
+  // Índices para optimizar consultas
+  @@index([activa])
   @@map("membresias")
+}
+
+// Control de membresías por usuario
+model MembresiaUsuario {
+  id              String   @id @default(uuid())
+  usuarioId       String
+  membresiaId     String
+  fechaInicio     DateTime
+  fechaExpiracion DateTime
+  activa          Boolean  @default(true)
+  
+  // Auditoría
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relaciones
+  usuario         Usuario @relation(fields: [usuarioId], references: [id])
+  membresia       Membresia @relation(fields: [membresiaId], references: [id])
+  
+  // Índices para optimizar consultas
+  @@index([usuarioId])
+  @@index([activa])
+  @@index([fechaExpiracion])
+  @@map("membresias_usuarios")
 }
 
 // ========================================
@@ -184,18 +206,6 @@ model ConfiguracionNotificacion {
   id                    String   @id @default(uuid())
   empleadoId            String   @unique
   notificacionesActivas Boolean  @default(true)
-  
-  // Zona horaria del empleado
-  zonaHoraria          String   @default("America/Lima")
-  
-  // Configuración de notificaciones
-  notificarPagos       Boolean  @default(true)  // Notificar cuando lleguen pagos
-  notificarRecordatorios Boolean @default(false) // Notificar recordatorios
-  notificarReportes    Boolean  @default(false) // Notificar reportes diarios
-  
-  // Horarios de notificación (opcional - para notificaciones no urgentes)
-  horaInicioNotificaciones String? // "08:00" - Solo notificar después de esta hora
-  horaFinNotificaciones   String? // "20:00" - Solo notificar antes de esta hora
   
   // Auditoría
   createdAt            DateTime @default(now())
@@ -215,9 +225,6 @@ model HorarioLaboral {
   horaInicio   String   // "09:00" formato 24h
   horaFin      String   // "18:00" formato 24h
   activo       Boolean  @default(true)
-  
-  // Descripción opcional del horario
-  descripcion  String?  // "Horario matutino", "Turno nocturno", etc.
   
   // Auditoría
   createdAt    DateTime @default(now())
@@ -240,10 +247,6 @@ model BreakLaboral {
   horaFin      String   // "13:00" formato 24h
   activo       Boolean  @default(true)
   
-  // Tipo de break
-  tipo         String   @default("ALMUERZO") // "ALMUERZO", "DESCANSO", "CAFE", "OTRO"
-  descripcion  String?  // "Break de almuerzo", "Descanso de 15 min", etc.
-  
   // Auditoría
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -251,39 +254,11 @@ model BreakLaboral {
   // Relación
   empleado     Empleado @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
   
-  // Constraint único por empleado, día y tipo
-  @@unique([empleadoId, diaSemana, tipo])
+  // Constraint único por empleado y día
+  @@unique([empleadoId, diaSemana])
   @@map("breaks_laborales")
 }
 
-// Historial de notificaciones enviadas (para auditoría y control)
-model HistorialNotificacion {
-  id              String   @id @default(uuid())
-  empleadoId      String
-  tipo            String   // "PAGO_RECIBIDO", "RECORDATORIO", "REPORTE_DIARIO", "OTRO"
-  mensaje         String   // Contenido del mensaje enviado
-  telefonoDestino String   // Teléfono al que se envió
-  enviado         Boolean  @default(false)
-  errorEnvio      String?  // Mensaje de error si falló el envío
-  
-  // Metadatos del envío
-  fechaProgramada DateTime // Cuándo se programó enviar
-  fechaEnviado    DateTime? // Cuándo se envió realmente
-  intentosEnvio   Int      @default(0) // Número de intentos de envío
-  
-  // Auditoría
-  createdAt       DateTime @default(now())
-  
-  // Relación
-  empleado        Empleado @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
-  
-  // Índices para optimizar consultas
-  @@index([empleadoId])
-  @@index([tipo])
-  @@index([enviado])
-  @@index([fechaProgramada])
-  @@map("historial_notificaciones")
-}
 
 // Modelo simplificado para códigos OTP (solo uno por usuario)
 model OtpCode {

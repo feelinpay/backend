@@ -6,8 +6,30 @@ export async function seedMembresias() {
   console.log('Iniciando seeder de membresías...');
 
   try {
-    // Limpiar membresías existentes
+    // Limpiar membresías y relaciones existentes
+    await prisma.membresiaUsuario.deleteMany();
     await prisma.membresia.deleteMany();
+
+    // Crear catálogo de membresías
+    const membresias = [
+      { nombre: 'Membresía Básica', meses: 1, precio: 29.90 },
+      { nombre: 'Membresía Premium', meses: 3, precio: 79.90 },
+      { nombre: 'Membresía Empresarial', meses: 6, precio: 149.90 },
+      { nombre: 'Membresía Anual', meses: 12, precio: 299.90 }
+    ];
+
+    const membresiasCreadas = [];
+    for (const membresia of membresias) {
+      const creada = await prisma.membresia.create({
+        data: {
+          nombre: membresia.nombre,
+          meses: membresia.meses,
+          precio: membresia.precio,
+          activa: true
+        }
+      });
+      membresiasCreadas.push(creada);
+    }
 
     // Obtener usuarios propietarios
     const usuariosPropietarios = await prisma.usuario.findMany({
@@ -24,27 +46,21 @@ export async function seedMembresias() {
     });
 
     // Asignar membresías de prueba a algunos usuarios
-    const tiposMembresia = ['basica', 'premium', 'empresarial'];
-    const precios = [29.90, 59.90, 99.90];
-
     for (let i = 0; i < Math.min(usuariosPropietarios.length, 3); i++) {
       const usuario = usuariosPropietarios[i];
-      const tipo = tiposMembresia[i % tiposMembresia.length];
-      const precio = precios[i % precios.length];
+      const membresia = membresiasCreadas[i % membresiasCreadas.length];
 
       const fechaInicio = new Date();
       const fechaExpiracion = new Date();
-      fechaExpiracion.setMonth(fechaInicio.getMonth() + 1);
+      fechaExpiracion.setMonth(fechaInicio.getMonth() + membresia.meses);
 
-      await prisma.membresia.create({
+      await prisma.membresiaUsuario.create({
         data: {
           usuarioId: usuario.id,
-          tipo,
+          membresiaId: membresia.id,
           fechaInicio,
           fechaExpiracion,
-          diasRestantes: 30,
-          precio,
-          activadaAt: new Date()
+          activa: true
         }
       });
     }

@@ -7,6 +7,7 @@ import { AppConfig } from './config/appConfig';
 import publicRoutes from './routes/publicRoutes';
 import ownerRoutes from './routes/ownerRoutes';
 import superAdminRoutes from './routes/superAdminRoutes';
+import paymentRoutes from './routes/paymentRoutes';
 
 // Importar middleware de errores
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -32,6 +33,7 @@ app.get('/', (req, res) => {
       public: '/api/public/*',
       owner: '/api/owner/*',
       superAdmin: '/api/super-admin/*',
+      payments: '/api/payments/*',
       dashboardEmployees: '/api/owner/employees/*',
       adminEmployees: '/api/super-admin/users/:userId/employees/*'
     }
@@ -50,6 +52,9 @@ app.use('/api/owner', ownerRoutes);
 
 // Rutas de super admin (solo super_admin)
 app.use('/api/super-admin', superAdminRoutes);
+
+// Rutas de pagos (usuarios autenticados)
+app.use('/api/payments', paymentRoutes);
 
 // Manejo de errores
 app.use(notFoundHandler);

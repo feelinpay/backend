@@ -1,11 +1,9 @@
-/**
- * OtpCode domain model
- */
+// Interfaces para OtpCode
 export interface OtpCode {
   id: string;
   email: string;
   codigo: string;
-  tipo: string;
+  tipo: string; // "EMAIL_VERIFICATION", "PASSWORD_RESET", "LOGIN_VERIFICATION"
   expiraEn: Date;
   usado: boolean;
   intentos: number;
@@ -13,9 +11,6 @@ export interface OtpCode {
   createdAt: Date;
 }
 
-/**
- * Create OtpCode DTO
- */
 export interface CreateOtpCodeDto {
   email: string;
   codigo: string;
@@ -24,37 +19,13 @@ export interface CreateOtpCodeDto {
   maxIntentos?: number;
 }
 
-/**
- * Update OtpCode DTO
- */
 export interface UpdateOtpCodeDto {
   usado?: boolean;
   intentos?: number;
 }
 
-/**
- * OTP verification DTO
- */
-export interface OTPVerificationDto {
-  code: string;
-  userId: number;
-}
-
-/**
- * OTP generation DTO
- */
-export interface OTPGenerationDto {
-  userId: number;
-  type: string;
-  expirationMinutes?: number;
-}
-
-/**
- * OtpCode types enum
- */
-export enum OtpCodeType {
-  EMAIL_VERIFICATION = 'EMAIL_VERIFICATION',
-  PASSWORD_RESET = 'PASSWORD_RESET',
-  LOGIN_2FA = 'LOGIN_2FA',
-  EMAIL_CHANGE = 'EMAIL_CHANGE'
+export interface ValidateOtpCodeDto {
+  email: string;
+  codigo: string;
+  tipo: string;
 }

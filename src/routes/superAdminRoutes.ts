@@ -19,6 +19,10 @@ import {
   verificarEmailUsuario
 } from '../controllers/adminController';
 import adminEmployeeRoutes from './adminEmployeeRoutes';
+import adminMembresiaRoutes from './adminMembresiaRoutes';
+import adminMembresiaUsuarioRoutes from './adminMembresiaUsuarioRoutes';
+import adminRolRoutes from './adminRolRoutes';
+import adminPermisoRoutes from './adminPermisoRoutes';
 import { authenticateToken } from '../middleware/auth';
 import { requireSuperAdmin } from '../middleware/superAdminAuth';
 
@@ -63,5 +67,29 @@ router.put('/users/:id/verificar-email', verificarEmailUsuario);
 
 // Usar las rutas específicas de empleados para Super Admin
 router.use('/', adminEmployeeRoutes);
+
+// ========================================
+// GESTIÓN DE MEMBRESÍAS
+// ========================================
+
+// Rutas para gestión de membresías (Solo Super Admin)
+router.use('/membresias', adminMembresiaRoutes);
+
+// ========================================
+// GESTIÓN DE MEMBRESÍAS DE USUARIOS
+// ========================================
+
+// Rutas para gestión de membresías de usuarios (Solo Super Admin)
+router.use('/usuarios', adminMembresiaUsuarioRoutes);
+
+// ========================================
+// GESTIÓN DE ROLES Y PERMISOS
+// ========================================
+
+// Rutas para gestión de roles (Solo Super Admin)
+router.use('/roles', adminRolRoutes);
+
+// Rutas para gestión de permisos (Solo Super Admin)
+router.use('/permisos', adminPermisoRoutes);
 
 export default router;

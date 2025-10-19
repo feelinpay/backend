@@ -1,31 +1,35 @@
-// Interfaces para Rol
-export interface Rol {
+// Interfaces para Permiso
+export interface Permiso {
   id: string;
   nombre: string;
   descripcion: string;
+  modulo: string;
+  accion: string;
   activo: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface CreateRolDto {
+export interface CreatePermisoDto {
   nombre: string;
   descripcion: string;
+  modulo: string;
+  accion: string;
   activo?: boolean;
 }
 
-export interface UpdateRolDto {
+export interface UpdatePermisoDto {
   nombre?: string;
   descripcion?: string;
+  modulo?: string;
+  accion?: string;
   activo?: boolean;
 }
 
-export interface RolWithPermissions extends Rol {
-  permisos: {
+export interface PermisoWithRoles extends Permiso {
+  roles: {
     id: string;
     nombre: string;
     descripcion: string;
-    modulo: string;
-    accion: string;
   }[];
 }
