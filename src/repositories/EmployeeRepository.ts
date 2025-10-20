@@ -62,8 +62,8 @@ export class EmployeeRepository implements IEmployeeRepository {
     const where = {
       usuarioId,
       OR: [
-        { nombre: { contains: searchTerm, mode: 'insensitive' as const } },
-        { telefono: { contains: searchTerm, mode: 'insensitive' as const } }
+        { nombre: { contains: searchTerm } },
+        { telefono: { contains: searchTerm } }
       ]
     };
 

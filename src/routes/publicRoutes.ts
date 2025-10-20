@@ -28,10 +28,14 @@ router.post('/auth/reset-password', resetPassword);
 
 // Health check
 router.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    version: '1.0.0'
+  res.json({
+    success: true,
+    message: 'Servidor funcionando correctamente',
+    data: {
+      status: 'OK', 
+      timestamp: new Date().toISOString(),
+      version: '1.0.0'
+    }
   });
 });
 

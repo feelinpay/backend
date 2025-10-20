@@ -1,4 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
+import { ResponseHelper } from '../utils/responseHelper';
+import { ERROR_MESSAGES } from '../constants/responseMessages';
 
 export interface AppError extends Error {
   statusCode?: number;
@@ -40,42 +42,44 @@ export const errorHandler = (
   // Errores de Prisma
   if (error.name === 'PrismaClientKnownRequestError') {
     statusCode = 400;
-    message = 'Error en la base de datos';
+    message = ERROR_MESSAGES.DATABASE_ERROR;
   }
 
   // Errores de validación
   if (error.name === 'ValidationError') {
     statusCode = 400;
+    message = ERROR_MESSAGES.VALIDATION_ERROR;
   }
 
   // Errores de JWT
   if (error.name === 'JsonWebTokenError') {
     statusCode = 401;
-    message = 'Token inválido';
+    message = ERROR_MESSAGES.TOKEN_INVALID;
   }
 
   if (error.name === 'TokenExpiredError') {
     statusCode = 401;
-    message = 'Token expirado';
+    message = ERROR_MESSAGES.TOKEN_EXPIRED;
   }
 
-  // Respuesta de error
-  res.status(statusCode).json({
-    success: false,
-    error: message,
-    ...(process.env.NODE_ENV === 'development' && {
-      stack: error.stack,
-      details: error
-    })
-  });
+  // Errores de Zod (validación)
+  if (error.name === 'ZodError') {
+    statusCode = 400;
+    message = ERROR_MESSAGES.VALIDATION_ERROR;
+  }
+
+  // Errores de rate limiting
+  if (error.name === 'TooManyRequestsError') {
+    statusCode = 429;
+    message = ERROR_MESSAGES.RATE_LIMIT_EXCEEDED;
+  }
+
+  // Respuesta de error estandarizada
+  ResponseHelper.error(res, message, statusCode);
 };
 
 export const notFoundHandler = (req: Request, res: Response) => {
-  res.status(404).json({
-    success: false,
-    error: 'Endpoint no encontrado',
-    path: req.originalUrl
-  });
+  ResponseHelper.notFound(res, ERROR_MESSAGES.ENDPOINT_NOT_FOUND);
 };
 
 export const asyncHandler = (fn: Function) => {

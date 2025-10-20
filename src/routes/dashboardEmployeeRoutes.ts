@@ -5,7 +5,6 @@ import {
   getMyEmployee,
   createMyEmployee,
   updateMyEmployee,
-  toggleMyEmployeeStatus,
   deleteMyEmployee,
   searchMyEmployees,
   getMyEmployeesWithFilters,
@@ -47,8 +46,7 @@ router.get('/search', searchMyEmployees); // Buscar mis empleados
 router.get('/filter', getMyEmployeesWithFilters); // Filtrar mis empleados
 router.get('/:employeeId', getMyEmployee); // Obtener mi empleado específico
 router.post('/', createMyEmployee); // Crear mi empleado
-router.put('/:employeeId', updateMyEmployee); // Actualizar mi empleado
-router.patch('/:employeeId/status', toggleMyEmployeeStatus); // Cambiar estado de mi empleado
+router.put('/:employeeId', updateMyEmployee); // Actualizar mi empleado (incluye cambio de estado)
 router.delete('/:employeeId', deleteMyEmployee); // Eliminar mi empleado
 
 // ========================================

@@ -6,7 +6,6 @@ import {
   getEmployeeByUser,
   createEmployeeForUser,
   updateEmployeeByUser,
-  toggleEmployeeStatusByUser,
   deleteEmployeeByUser,
   searchEmployeesByUser,
   getEmployeeStatsByUser
@@ -47,8 +46,7 @@ router.get('/users/:userId/employees/stats', getEmployeeStatsByUser); // Estadí
 router.get('/users/:userId/employees/search', searchEmployeesByUser); // Buscar empleados del usuario
 router.get('/users/:userId/employees/:employeeId', getEmployeeByUser); // Obtener empleado específico
 router.post('/users/:userId/employees', createEmployeeForUser); // Crear empleado para el usuario
-router.put('/users/:userId/employees/:employeeId', updateEmployeeByUser); // Actualizar empleado del usuario
-router.patch('/users/:userId/employees/:employeeId/status', toggleEmployeeStatusByUser); // Cambiar estado
+router.put('/users/:userId/employees/:employeeId', updateEmployeeByUser); // Actualizar empleado del usuario (incluye cambio de estado)
 router.delete('/users/:userId/employees/:employeeId', deleteEmployeeByUser); // Eliminar empleado del usuario
 
 // ========================================
