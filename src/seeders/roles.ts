@@ -6,14 +6,14 @@ const prisma = new PrismaClient();
 export async function seedRoles() {
   try {
     console.log('Creando roles del sistema...');
-    
+
     const roles = [
-      { 
-        nombre: 'super_admin', 
+      {
+        nombre: 'super_admin',
         descripcion: 'Super Administrador con acceso completo al sistema',
         permisos: [
           'GESTION_USUARIOS',
-          'GESTION_EMPLEADOS', 
+          'GESTION_EMPLEADOS',
           'GESTION_PAGOS',
           'GESTION_REPORTES',
           'GESTION_CONFIGURACION',
@@ -21,8 +21,8 @@ export async function seedRoles() {
           'ACCESO_TOTAL'
         ]
       },
-      { 
-        nombre: 'propietario', 
+      {
+        nombre: 'propietario',
         descripcion: 'Propietario de negocio con acceso a su empresa',
         permisos: [
           'GESTION_EMPLEADOS',
@@ -31,14 +31,7 @@ export async function seedRoles() {
           'GESTION_CONFIGURACION'
         ]
       },
-      { 
-        nombre: 'empleado', 
-        descripcion: 'Empleado del negocio con acceso limitado',
-        permisos: [
-          'VER_PAGOS',
-          'VER_REPORTES'
-        ]
-      }
+
     ];
 
     for (const rol of roles) {

@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { 
-  horarioLaboralSchema, 
-  updateHorarioLaboralSchema 
+import {
+  horarioLaboralSchema,
+  updateHorarioLaboralSchema
 } from '../validators/scheduleValidators';
 
 const prisma = new PrismaClient();
@@ -97,29 +97,15 @@ export const createMyHorarioLaboral = async (req: Request, res: Response) => {
       });
     }
 
-    // Verificar si ya existe horario para ese día
-    const horarioExistente = await prisma.horarioLaboral.findUnique({
-      where: {
-        empleadoId_diaSemana: {
-          empleadoId: employeeId,
-          diaSemana: validationResult.data.diaSemana
-        }
-      }
-    });
-
-    if (horarioExistente) {
-      return res.status(409).json({
-        success: false,
-        message: 'Ya existe un horario para este día de la semana'
-      });
-    }
-
     // Crear horario
     const horario = await prisma.horarioLaboral.create({
       data: {
         empleadoId: employeeId,
-        ...validationResult.data
-      }
+        diaSemana: String(validationResult.data.diaSemana),
+        horaInicio: validationResult.data.horaInicio,
+        horaFin: validationResult.data.horaFin,
+        activo: validationResult.data.activo ?? true
+      } as any
     });
 
     res.status(201).json({
@@ -193,29 +179,16 @@ export const updateMyHorarioLaboral = async (req: Request, res: Response) => {
       });
     }
 
-    // Si se está cambiando el día, verificar que no exista otro horario para ese día
-    if (validationResult.data.diaSemana && validationResult.data.diaSemana !== horarioExistente.diaSemana) {
-      const horarioConflicto = await prisma.horarioLaboral.findUnique({
-        where: {
-          empleadoId_diaSemana: {
-            empleadoId: employeeId,
-            diaSemana: validationResult.data.diaSemana
-          }
-        }
-      });
-
-      if (horarioConflicto) {
-        return res.status(409).json({
-          success: false,
-          message: 'Ya existe un horario para este día de la semana'
-        });
-      }
+    // Preparar datos para actualización (convertir diaSemana a String si existe)
+    const updateData: any = { ...validationResult.data };
+    if (updateData.diaSemana !== undefined) {
+      updateData.diaSemana = String(updateData.diaSemana);
     }
 
     // Actualizar horario
     const horario = await prisma.horarioLaboral.update({
       where: { id: horarioId },
-      data: validationResult.data
+      data: updateData
     });
 
     res.json({

@@ -12,13 +12,13 @@ const employeeRepository = new EmployeeRepository(prisma);
 export const getMyEmployees = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
-    
+
     if (!userId) {
       return ResponseHelper.unauthorized(res, ERROR_MESSAGES.UNAUTHORIZED);
     }
 
     const { page = 1, limit = 10, search, estado, cargo } = req.query;
-    
+
     const pagination = {
       page: parseInt(page as string),
       limit: parseInt(limit as string)
@@ -54,7 +54,7 @@ export const getMyEmployee = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
     const { employeeId } = req.params;
-    
+
     if (!userId) {
       return ResponseHelper.unauthorized(res, ERROR_MESSAGES.UNAUTHORIZED);
     }
@@ -66,7 +66,7 @@ export const getMyEmployee = async (req: Request, res: Response) => {
         usuarioId: userId
       }
     });
-    
+
     if (!employee) {
       return ResponseHelper.notFound(res, ERROR_MESSAGES.EMPLOYEE_NOT_FOUND);
     }
@@ -83,7 +83,7 @@ export const getMyEmployee = async (req: Request, res: Response) => {
 export const createMyEmployee = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
-    
+
     if (!userId) {
       return ResponseHelper.unauthorized(res, ERROR_MESSAGES.UNAUTHORIZED);
     }
@@ -93,10 +93,9 @@ export const createMyEmployee = async (req: Request, res: Response) => {
     if (!validationResult.success) {
       const errors = validationResult.error.issues.map(err => ({
         field: err.path.join('.'),
-        message: err.message,
-        value: err.input
+        message: err.message
       }));
-      
+
       return ResponseHelper.validationError(res, errors, ERROR_MESSAGES.VALIDATION_ERROR);
     }
 
@@ -134,7 +133,7 @@ export const updateMyEmployee = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
     const { employeeId } = req.params;
-    
+
     if (!userId) {
       return ResponseHelper.unauthorized(res, ERROR_MESSAGES.UNAUTHORIZED);
     }
@@ -144,10 +143,9 @@ export const updateMyEmployee = async (req: Request, res: Response) => {
     if (!validationResult.success) {
       const errors = validationResult.error.issues.map(err => ({
         field: err.path.join('.'),
-        message: err.message,
-        value: err.input
+        message: err.message
       }));
-      
+
       return ResponseHelper.validationError(res, errors, ERROR_MESSAGES.VALIDATION_ERROR);
     }
 
@@ -160,7 +158,7 @@ export const updateMyEmployee = async (req: Request, res: Response) => {
         usuarioId: userId
       }
     });
-    
+
     if (!existingEmployee) {
       return ResponseHelper.notFound(res, ERROR_MESSAGES.EMPLOYEE_NOT_FOUND);
     }
@@ -196,7 +194,7 @@ export const deleteMyEmployee = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
     const { employeeId } = req.params;
-    
+
     if (!userId) {
       return ResponseHelper.unauthorized(res, ERROR_MESSAGES.UNAUTHORIZED);
     }
@@ -208,7 +206,7 @@ export const deleteMyEmployee = async (req: Request, res: Response) => {
         usuarioId: userId
       }
     });
-    
+
     if (!existingEmployee) {
       return ResponseHelper.notFound(res, ERROR_MESSAGES.EMPLOYEE_NOT_FOUND);
     }
@@ -229,7 +227,7 @@ export const searchMyEmployees = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
     const { q, page = 1, limit = 10 } = req.query;
-    
+
     if (!userId) {
       return ResponseHelper.unauthorized(res, ERROR_MESSAGES.UNAUTHORIZED);
     }
@@ -276,7 +274,7 @@ export const getMyEmployeesWithFilters = async (req: Request, res: Response) => 
   try {
     const userId = (req as any).user?.id;
     const { estado, cargo, fechaInicio, fechaFin, page = 1, limit = 10 } = req.query;
-    
+
     if (!userId) {
       return ResponseHelper.unauthorized(res, ERROR_MESSAGES.UNAUTHORIZED);
     }
@@ -330,7 +328,7 @@ export const getMyEmployeesWithFilters = async (req: Request, res: Response) => 
 export const getMyEmployeeStats = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
-    
+
     if (!userId) {
       return ResponseHelper.unauthorized(res, ERROR_MESSAGES.UNAUTHORIZED);
     }

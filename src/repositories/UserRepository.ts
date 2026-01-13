@@ -3,7 +3,7 @@ import { IUserRepository } from '../interfaces/IUserRepository';
 import { Usuario, CreateUsuarioDto, UpdateUsuarioDto } from '../models/Usuario';
 
 export class UserRepository implements IUserRepository {
-  constructor(private prisma: PrismaClient) {}
+  constructor(private prisma: PrismaClient) { }
 
   async findById(id: string): Promise<Usuario | null> {
     const user = await this.prisma.usuario.findUnique({
@@ -16,6 +16,14 @@ export class UserRepository implements IUserRepository {
   async findByEmail(email: string): Promise<Usuario | null> {
     const user = await this.prisma.usuario.findUnique({
       where: { email },
+      include: { rol: true }
+    });
+    return user;
+  }
+
+  async findByGoogleId(googleId: string): Promise<Usuario | null> {
+    const user = await this.prisma.usuario.findUnique({
+      where: { googleId },
       include: { rol: true }
     });
     return user;
@@ -46,13 +54,12 @@ export class UserRepository implements IUserRepository {
 
   async findAll(page: number = 1, limit: number = 20, search?: string): Promise<{ usuarios: Usuario[], total: number }> {
     const skip = (page - 1) * limit;
-    
+
     const where: any = {};
     if (search) {
       where.OR = [
         { nombre: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { telefono: { contains: search, mode: 'insensitive' } }
+        { email: { contains: search, mode: 'insensitive' } }
       ];
     }
 
@@ -74,18 +81,6 @@ export class UserRepository implements IUserRepository {
     const user = await this.prisma.usuario.update({
       where: { id },
       data: { activo },
-      include: { rol: true }
-    });
-    return user;
-  }
-
-  async verifyEmail(id: string): Promise<Usuario> {
-    const user = await this.prisma.usuario.update({
-      where: { id },
-      data: { 
-        emailVerificado: true,
-        emailVerificadoAt: new Date()
-      },
       include: { rol: true }
     });
     return user;

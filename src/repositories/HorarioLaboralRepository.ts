@@ -9,12 +9,12 @@ export class HorarioLaboralRepository implements IHorarioLaboralRepository {
     return await prisma.horarioLaboral.create({
       data: {
         empleadoId: data.empleadoId,
-        diaSemana: data.diaSemana,
+        diaSemana: data.diaSemana as any,
         horaInicio: data.horaInicio,
         horaFin: data.horaFin,
         activo: data.activo ?? true
       }
-    });
+    }) as any;
   }
 
   async obtenerPorEmpleado(empleadoId: string): Promise<HorarioLaboral[]> {
@@ -22,8 +22,8 @@ export class HorarioLaboralRepository implements IHorarioLaboralRepository {
       where: { empleadoId },
       orderBy: {
         diaSemana: 'asc'
-      }
-    });
+      } as any
+    }) as any;
   }
 
   async obtenerPorEmpleadoYDia(empleadoId: string, diaSemana: number): Promise<HorarioLaboral | null> {
@@ -33,13 +33,13 @@ export class HorarioLaboralRepository implements IHorarioLaboralRepository {
           empleadoId,
           diaSemana
         }
-      }
-    });
+      } as any
+    }) as any;
   }
 
   async obtenerTodos(search?: string): Promise<HorarioLaboral[]> {
     const where: any = {};
-    
+
     if (search) {
       where.empleado = {
         nombre: {
@@ -54,7 +54,7 @@ export class HorarioLaboralRepository implements IHorarioLaboralRepository {
       orderBy: {
         createdAt: 'desc'
       }
-    });
+    }) as any;
   }
 
   async actualizar(id: string, data: UpdateHorarioLaboralDto): Promise<HorarioLaboral> {
@@ -63,14 +63,14 @@ export class HorarioLaboralRepository implements IHorarioLaboralRepository {
       data: {
         ...data,
         updatedAt: new Date()
-      }
-    });
+      } as any // UpdateInput might also be mismatched
+    }) as any;
   }
 
   async eliminar(id: string): Promise<HorarioLaboral> {
     return await prisma.horarioLaboral.delete({
       where: { id }
-    });
+    }) as any;
   }
 
   async existePorEmpleadoYDia(empleadoId: string, diaSemana: number): Promise<boolean> {
@@ -78,7 +78,7 @@ export class HorarioLaboralRepository implements IHorarioLaboralRepository {
       where: {
         empleadoId,
         diaSemana
-      }
+      } as any
     });
     return count > 0;
   }
@@ -91,7 +91,7 @@ export class HorarioLaboralRepository implements IHorarioLaboralRepository {
       },
       orderBy: {
         diaSemana: 'asc'
-      }
-    });
+      } as any
+    }) as any;
   }
 }

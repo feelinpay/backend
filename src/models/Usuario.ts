@@ -1,34 +1,25 @@
 /**
- * Usuario domain model based on Prisma schema
+ * Usuario domain model based on Prisma schema (Google Sign-In only)
  */
 export interface Usuario {
   id: string;
   nombre: string;
-  telefono: string;
   email: string;
-  password: string;
+  googleId: string; // Google ID for authentication
   rolId: string;
-  googleSpreadsheetId: string;
+  googleDriveFolderId: string | null;
   activo: boolean;
-  
+  imagen: string | null; // NEW: Added imagen
+
   // Sistema de prueba
-  enPeriodoPrueba: boolean;
-  fechaInicioPrueba?: Date;
-  diasPruebaRestantes: number;
-  
-  // Verificación de email
-  emailVerificado: boolean;
-  emailVerificadoAt?: Date;
-  
-  // Sistema de intentos OTP diarios
-  otpAttemptsToday: number;
-  lastOtpAttemptDate?: Date;
-  
+  fechaInicioPrueba?: Date | null;
+  fechaFinPrueba?: Date | null;
+
   // Auditoría
   createdAt: Date;
   updatedAt: Date;
-  lastLoginAt?: Date;
-  
+  lastLoginAt?: Date | null;
+
   // Relaciones (commented out to avoid circular dependencies)
   rol?: {
     id: string;
@@ -38,27 +29,22 @@ export interface Usuario {
     createdAt: Date;
     updatedAt: Date;
   };
-  // empleados?: Empleado[];
-  // pagos?: Pago[];
-  // licencias?: Licencia[];
 }
 
 /**
- * Create Usuario DTO
+ * Create Usuario DTO (Google Sign-In)
  */
 export interface CreateUsuarioDto {
   id?: string;
   nombre: string;
-  telefono: string;
   email: string;
-  password: string;
+  googleId: string; // Required for Google Sign-In
+  imagen?: string | null;
   rolId: string;
-  googleSpreadsheetId: string;
+  googleDriveFolderId?: string | null;
   activo?: boolean;
-  enPeriodoPrueba?: boolean;
   fechaInicioPrueba?: Date;
-  diasPruebaRestantes?: number;
-  emailVerificado?: boolean;
+  fechaFinPrueba?: Date;
 }
 
 /**
@@ -66,14 +52,10 @@ export interface CreateUsuarioDto {
  */
 export interface UpdateUsuarioDto {
   nombre?: string;
-  telefono?: string;
-  email?: string;
-  password?: string;
   activo?: boolean;
-  enPeriodoPrueba?: boolean;
-  diasPruebaRestantes?: number;
-  emailVerificado?: boolean;
-  emailVerificadoAt?: Date;
+  imagen?: string | null;
+  fechaInicioPrueba?: Date;
+  fechaFinPrueba?: Date;
 }
 
 /**
@@ -82,36 +64,15 @@ export interface UpdateUsuarioDto {
 export interface UsuarioResponseDto {
   id: string;
   nombre: string;
-  telefono: string;
   email: string;
+  googleId: string;
   rolId: string;
-  googleSpreadsheetId: string;
+  googleDriveFolderId: string | null;
   activo: boolean;
-  enPeriodoPrueba: boolean;
-  diasPruebaRestantes: number;
-  emailVerificado: boolean;
+  imagen: string | null;
+  fechaInicioPrueba?: Date | null;
+  fechaFinPrueba?: Date | null;
   createdAt: Date;
   updatedAt: Date;
-  lastLoginAt?: Date;
-  // rol: Rol;
-}
-
-/**
- * User login DTO
- */
-export interface UserLoginDto {
-  email: string;
-  password: string;
-}
-
-/**
- * User registration DTO
- */
-export interface UserRegistrationDto {
-  email: string;
-  phone: string;
-  name: string;
-  lastName?: string;
-  password: string;
-  confirmPassword: string;
+  lastLoginAt?: Date | null;
 }

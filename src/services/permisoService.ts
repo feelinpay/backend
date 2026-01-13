@@ -29,7 +29,7 @@ export class PermisoService {
   static async obtenerTodos(page: number = 1, limit: number = 10, activo?: boolean, search?: string, modulo?: string) {
     try {
       const result = await permisoRepository.obtenerTodos(page, limit, activo, search, modulo);
-      
+
       return {
         success: true,
         data: {
@@ -51,7 +51,7 @@ export class PermisoService {
   static async obtenerPorId(id: string) {
     try {
       const permiso = await permisoRepository.obtenerPorId(id);
-      
+
       if (!permiso) {
         throw new Error('Permiso no encontrado');
       }
@@ -117,7 +117,7 @@ export class PermisoService {
   static async obtenerConRoles(id: string) {
     try {
       const permiso = await permisoRepository.obtenerConRoles(id);
-      
+
       if (!permiso) {
         throw new Error('Permiso no encontrado');
       }
@@ -135,7 +135,7 @@ export class PermisoService {
   static async obtenerPorModulo(modulo: string) {
     try {
       const permisos = await permisoRepository.obtenerPorModulo(modulo);
-      
+
       return {
         success: true,
         data: permisos
@@ -145,17 +145,5 @@ export class PermisoService {
     }
   }
 
-  // Obtener permisos por acción
-  static async obtenerPorAccion(accion: string) {
-    try {
-      const permisos = await permisoRepository.obtenerPorAccion(accion);
-      
-      return {
-        success: true,
-        data: permisos
-      };
-    } catch (error: any) {
-      throw new Error(`Error al obtener permisos por acción: ${error.message}`);
-    }
-  }
+
 }

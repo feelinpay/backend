@@ -1,275 +1,135 @@
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function initDatabase() {
   try {
-    console.log('Iniciando inicialización de la base de datos...');
+    console.log('Iniciando carga de datos (SÓLO RUTAS VÁLIDAS)...');
 
-    // 1. Limpiar base de datos existente
+    // 1. Limpieza
     console.log('Limpiando base de datos...');
-    await prisma.otpCode.deleteMany();
-    await prisma.membresia.deleteMany();
-    await prisma.pago.deleteMany();
+    await prisma.membresiaUsuario.deleteMany();
+    await prisma.rolPermiso.deleteMany();
+    await prisma.horarioLaboral.deleteMany();
+
     await prisma.empleado.deleteMany();
     await prisma.usuario.deleteMany();
-    await prisma.rolPermiso.deleteMany();
+    await prisma.membresia.deleteMany();
     await prisma.permiso.deleteMany();
     await prisma.rol.deleteMany();
 
-    // 2. Crear roles
+    // 2. Roles
     console.log('Creando roles...');
     const superAdminRole = await prisma.rol.create({
-      data: {
-        nombre: 'super_admin',
-        descripcion: 'Super Administrador del sistema',
-        activo: true,
-      }
+      data: { nombre: 'super_admin', descripcion: 'Super Administrador', activo: true }
     });
 
     const propietarioRole = await prisma.rol.create({
-      data: {
-        nombre: 'propietario',
-        descripcion: 'Propietario de negocio',
-        activo: true,
-      }
+      data: { nombre: 'propietario', descripcion: 'Propietario de Negocio', activo: true }
     });
 
-    // 3. Crear permisos del sistema
-    console.log('Creando permisos del sistema...');
-    const permisos = [
-      // Permisos de usuarios
-      { nombre: 'gestionar_usuarios', descripcion: 'Gestionar usuarios del sistema', modulo: 'usuarios', accion: 'create' },
-      { nombre: 'ver_usuarios', descripcion: 'Ver lista de usuarios', modulo: 'usuarios', accion: 'read' },
-      { nombre: 'editar_usuarios', descripcion: 'Editar usuarios', modulo: 'usuarios', accion: 'update' },
-      { nombre: 'eliminar_usuarios', descripcion: 'Eliminar usuarios', modulo: 'usuarios', accion: 'delete' },
-      { nombre: 'inhabilitar_usuarios', descripcion: 'Inhabilitar usuarios', modulo: 'usuarios', accion: 'inhabilitar' },
-      { nombre: 'reactivar_usuarios', descripcion: 'Reactivar usuarios', modulo: 'usuarios', accion: 'reactivar' },
+    // 3. Membresías
+    console.log('Creando membresías...');
+    // Básica: 1 mes, 15 soles
+    await prisma.membresia.create({
+      data: { nombre: 'Membresía Básica', precio: 15.00, meses: 1, activa: true }
+    });
 
-      // Permisos de empleados
-      { nombre: 'gestionar_empleados', descripcion: 'Gestionar empleados', modulo: 'empleados', accion: 'create' },
-      { nombre: 'ver_empleados', descripcion: 'Ver lista de empleados', modulo: 'empleados', accion: 'read' },
-      { nombre: 'editar_empleados', descripcion: 'Editar empleados', modulo: 'empleados', accion: 'update' },
-      { nombre: 'eliminar_empleados', descripcion: 'Eliminar empleados', modulo: 'empleados', accion: 'delete' },
+    // Crece: 6 meses, 80 soles
+    await prisma.membresia.create({
+      data: { nombre: 'Membresía Crece', precio: 80.00, meses: 6, activa: true }
+    });
 
-      // Permisos de pagos
-      { nombre: 'ver_pagos', descripcion: 'Ver pagos', modulo: 'pagos', accion: 'read' },
-      { nombre: 'gestionar_pagos', descripcion: 'Gestionar pagos', modulo: 'pagos', accion: 'create' },
-      { nombre: 'editar_pagos', descripcion: 'Editar pagos', modulo: 'pagos', accion: 'update' },
+    // Premium: 12 meses, 150 soles
+    await prisma.membresia.create({
+      data: { nombre: 'Membresía Premium', precio: 150.00, meses: 12, activa: true }
+    });
 
-      // Permisos de reportes
-      { nombre: 'ver_reportes', descripcion: 'Ver reportes', modulo: 'reportes', accion: 'read' },
-      { nombre: 'exportar_reportes', descripcion: 'Exportar reportes', modulo: 'reportes', accion: 'export' },
+    // 4. Permisos (SÓLO LOS QUE TIENEN RUTA, OMITIENDO NULL)
+    console.log('Creando permisos de navegación...');
+    const permisosData = [
+      // Dashboard
+      { nombre: 'Ver Dashboard', modulo: 'dashboard', ruta: '/dashboard' },
 
-      // Permisos de membresías
-      { nombre: 'gestionar_membresias', descripcion: 'Gestionar membresías', modulo: 'membresias', accion: 'create' },
-      { nombre: 'ver_membresias', descripcion: 'Ver membresías', modulo: 'membresias', accion: 'read' },
-      { nombre: 'activar_membresias', descripcion: 'Activar membresías', modulo: 'membresias', accion: 'activate' },
+      // Usuarios
+      { nombre: 'Gestión de Usuarios', modulo: 'usuarios', ruta: '/user-management' },
 
-      // Permisos de sistema
-      { nombre: 'ver_sistema', descripcion: 'Ver información del sistema', modulo: 'sistema', accion: 'read' },
-      { nombre: 'gestionar_permisos', descripcion: 'Gestionar permisos', modulo: 'sistema', accion: 'manage' },
+      // Empleados
+      { nombre: 'Mis Empleados', modulo: 'empleados', ruta: '/employee-management' },
+
+      // Membresías
+      { nombre: 'Gestión de Membresías', modulo: 'membresias', ruta: '/membership-management' },
+
+      // Roles / Permisos
+      { nombre: 'Gestión de Permisos', modulo: 'roles', ruta: '/permissions-management' },
+
+      // Sistema (Apunta a permisos de Android)
+      { nombre: 'Configuración Sistema', modulo: 'sistema', ruta: '/permissions' },
+
+      // Reportes
+      { nombre: 'Reportes de Membresías', modulo: 'reportes', ruta: '/membership-reports' },
     ];
 
-    const permisosCreados = [];
-    for (const permiso of permisos) {
-      const permisoCreado = await prisma.permiso.create({
-        data: permiso
-      });
-      permisosCreados.push(permisoCreado);
-    }
-
-    // 4. Asignar permisos a roles
-    console.log('Asignando permisos a roles...');
-    
-    // Super Admin tiene todos los permisos
-    for (const permiso of permisosCreados) {
-      await prisma.rolPermiso.create({
+    const permisosMap = new Map();
+    for (const p of permisosData) {
+      const permiso = await prisma.permiso.create({
         data: {
-          rolId: superAdminRole.id,
-          permisoId: permiso.id
+          nombre: p.nombre,
+          modulo: p.modulo,
+          ruta: p.ruta,
+          activo: true
         }
       });
+      permisosMap.set(p.nombre, permiso.id);
     }
 
-    // Propietario tiene permisos limitados
-    const permisosPropietario = permisosCreados.filter(p => 
-      p.modulo === 'empleados' || 
-      p.modulo === 'pagos' || 
-      p.modulo === 'reportes' ||
-      (p.modulo === 'sistema' && p.accion === 'read')
-    );
+    // 5. Asignar Permisos
+    console.log('Asignando permisos...');
 
-    for (const permiso of permisosPropietario) {
-      await prisma.rolPermiso.create({
-        data: {
-          rolId: propietarioRole.id,
-          permisoId: permiso.id
-        }
-      });
-    }
+    const asignar = async (rolId, nombres) => {
+      for (const nombre of nombres) {
+        const id = permisosMap.get(nombre);
+        if (id) await prisma.rolPermiso.create({ data: { rolId, permisoId: id } });
+      }
+    };
 
-    // 5. Crear usuario super admin
-    console.log('Creando usuario super admin...');
-    const hashedPassword = await bcrypt.hash('admin123', 10);
-    
-    const superAdmin = await prisma.usuario.create({
+    // SUPER ADMIN: Todo
+    await asignar(superAdminRole.id, permisosData.map(p => p.nombre));
+
+    // PROPIETARIO: Dashboard, Empleados, Configuración Sistema
+    await asignar(propietarioRole.id, [
+      'Ver Dashboard',
+      'Mis Empleados',
+      'Configuración Sistema'
+    ]);
+
+    // 6. Usuario Super Admin
+    console.log('Creando usuario...');
+    await prisma.usuario.create({
       data: {
         nombre: 'David Zapata',
-        email: 'davidzapata.dz051099@gmail.com',
-        telefono: '+51987654321',
-        password: hashedPassword,
+        email: 'feelinpay@gmail.com',
+        googleId: '104068593847385938457',
         rolId: superAdminRole.id,
-        googleSpreadsheetId: `sheet_${Date.now()}_admin`,
         activo: true,
-        emailVerificado: true,
-        enPeriodoPrueba: false,
-        diasPruebaRestantes: 0,
-        otpAttemptsToday: 0,
+        fechaInicioPrueba: new Date(),
+        fechaFinPrueba: new Date(new Date().setFullYear(new Date().getFullYear() + 100)),
+        imagen: 'https://lh3.googleusercontent.com/a/ACg8ocLabc...' // Placeholder
       }
     });
 
-    // 6. Crear usuario propietario de ejemplo
-    console.log('Creando usuario propietario de ejemplo...');
-    const propietarioPassword = await bcrypt.hash('propietario123', 10);
-    
-    const propietario = await prisma.usuario.create({
-      data: {
-        nombre: 'Juan Pérez',
-        email: 'juan.perez@ejemplo.com',
-        telefono: '+51987654322',
-        password: propietarioPassword,
-        rolId: propietarioRole.id,
-        googleSpreadsheetId: `sheet_${Date.now()}_propietario`,
-        activo: true,
-        emailVerificado: true,
-        enPeriodoPrueba: false,
-        diasPruebaRestantes: 0,
-        otpAttemptsToday: 0,
-      }
-    });
-
-    // 7. Crear empleados de ejemplo
-    console.log('Creando empleados de ejemplo...');
-    const empleados = [
-      { nombre: 'Juan Pérez', telefono: '+51987654321' },
-      { nombre: 'María García', telefono: '+51987654322' },
-      { nombre: 'Carlos López', telefono: '+51987654323' },
-    ];
-
-    for (const empleado of empleados) {
-      await prisma.empleado.create({
-        data: {
-          usuarioId: propietario.id,
-          nombre: empleado.nombre,
-          telefono: empleado.telefono,
-          activo: true,
-        }
-      });
-    }
-
-    // 8. Crear pagos de ejemplo
-    console.log('Creando pagos de ejemplo...');
-    const pagos = [
-      {
-        nombrePagador: 'María García',
-        monto: 50.00,
-        fecha: new Date('2024-01-15'),
-        codigoSeguridad: '123456',
-        numeroTelefono: '+51987654324',
-        mensajeOriginal: 'Pago por servicios',
-      },
-      {
-        nombrePagador: 'Carlos López',
-        monto: 75.50,
-        fecha: new Date('2024-01-16'),
-        codigoSeguridad: '789012',
-        numeroTelefono: '+51987654325',
-        mensajeOriginal: 'Pago mensual',
-      },
-    ];
-
-    for (const pago of pagos) {
-      await prisma.pago.create({
-        data: {
-          usuarioId: propietario.id,
-          nombrePagador: pago.nombrePagador,
-          monto: pago.monto,
-          fecha: pago.fecha,
-          codigoSeguridad: pago.codigoSeguridad,
-          numeroTelefono: pago.numeroTelefono,
-          mensajeOriginal: pago.mensajeOriginal,
-          registradoEnSheets: false,
-          notificadoEmpleados: false,
-        }
-      });
-    }
-
-    // 9. Crear membresía de ejemplo
-    console.log('Creando membresía de ejemplo...');
-    const membresia = await prisma.membresia.create({
-      data: {
-        nombre: 'Membresía Premium',
-        meses: 12,
-        precio: 29.90,
-        activa: true
-      }
-    });
-
-    // Crear la relación en MembresiaUsuario
-    await prisma.membresiaUsuario.create({
-      data: {
-        usuarioId: propietario.id,
-        membresiaId: membresia.id,
-        fechaInicio: new Date(),
-        fechaExpiracion: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 año
-        activa: true
-      }
-    });
-
-    // 10. Crear códigos OTP de ejemplo
-    console.log('Creando códigos OTP de ejemplo...');
-    const otpCodes = [
-      {
-        email: 'davidzapata.dz051099@gmail.com',
-        codigo: '123456',
-        tipo: 'EMAIL_VERIFICATION',
-        expiraEn: new Date(Date.now() + 10 * 60 * 1000), // 10 minutos
-        usado: false,
-        intentos: 0,
-        maxIntentos: 3
-      }
-    ];
-
-    for (const otp of otpCodes) {
-      await prisma.otpCode.create({
-        data: {
-          email: otp.email,
-          codigo: otp.codigo,
-          tipo: otp.tipo,
-          expiraEn: otp.expiraEn,
-          usado: otp.usado,
-          intentos: otp.intentos,
-          maxIntentos: otp.maxIntentos
-        }
-      });
-    }
-
-    console.log('Base de datos inicializada completamente!');
-    console.log(`Resumen: ${permisosCreados.length} permisos, 2 usuarios, ${empleados.length} empleados, ${pagos.length} pagos`);
-    console.log('Credenciales: Super Admin: davidzapata.dz051099@gmail.com / admin123');
-    console.log('Propietario: juan.perez@ejemplo.com / propietario123');
+    console.log('--- SEED COMPLETADO (MODO LIMPIO) ---');
+    console.log('Sólo se registraron permisos con ruta válida.');
+    console.log('Membresías actualizadas.');
 
   } catch (error) {
-    console.error('Error inicializando base de datos:', error);
-    throw error;
+    console.error('Error:', error);
+    process.exit(1);
   } finally {
     await prisma.$disconnect();
   }
 }
 
-// Ejecutar si se llama directamente
 if (require.main === module) {
   initDatabase();
 }

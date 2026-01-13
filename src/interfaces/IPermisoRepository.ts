@@ -9,5 +9,4 @@ export interface IPermisoRepository {
   eliminar(id: string): Promise<Permiso>;
   obtenerConRoles(id: string): Promise<PermisoWithRoles | null>;
   obtenerPorModulo(modulo: string): Promise<Permiso[]>;
-  obtenerPorAccion(accion: string): Promise<Permiso[]>;
 }

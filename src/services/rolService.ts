@@ -29,7 +29,7 @@ export class RolService {
   static async obtenerTodos(page: number = 1, limit: number = 10, activo?: boolean, search?: string) {
     try {
       const result = await rolRepository.obtenerTodos(page, limit, activo, search);
-      
+
       return {
         success: true,
         data: {
@@ -51,7 +51,7 @@ export class RolService {
   static async obtenerPorId(id: string) {
     try {
       const rol = await rolRepository.obtenerPorId(id);
-      
+
       if (!rol) {
         throw new Error('Rol no encontrado');
       }
@@ -71,6 +71,15 @@ export class RolService {
       const rol = await rolRepository.obtenerPorId(id);
       if (!rol) {
         throw new Error('Rol no encontrado');
+      }
+
+      // PROTECCIÓN DE ROLES DEL SISTEMA
+      const rolesProtegidos = ['super_admin', 'propietario'];
+      if (rolesProtegidos.includes(rol.nombre)) {
+        // Si intenta cambiar el nombre
+        if (data.nombre && data.nombre !== rol.nombre) {
+          throw new Error(`No se puede renombrar el rol protegido '${rol.nombre}'`);
+        }
       }
 
       // Si se está cambiando el nombre, verificar que no exista otro rol con ese nombre
@@ -101,6 +110,12 @@ export class RolService {
         throw new Error('Rol no encontrado');
       }
 
+      // PROTECCIÓN DE ROLES DEL SISTEMA
+      const rolesProtegidos = ['super_admin', 'propietario'];
+      if (rolesProtegidos.includes(rol.nombre)) {
+        throw new Error(`No se puede eliminar el rol protegido '${rol.nombre}'`);
+      }
+
       const rolEliminado = await rolRepository.eliminar(id);
 
       return {
@@ -117,7 +132,7 @@ export class RolService {
   static async obtenerConPermisos(id: string) {
     try {
       const rol = await rolRepository.obtenerConPermisos(id);
-      
+
       if (!rol) {
         throw new Error('Rol no encontrado');
       }
@@ -138,6 +153,10 @@ export class RolService {
       const rol = await rolRepository.obtenerPorId(rolId);
       if (!rol) {
         throw new Error('Rol no encontrado');
+      }
+
+      if (rol.nombre === 'super_admin') {
+        throw new Error('No se pueden modificar los permisos del Super Admin');
       }
 
       // Verificar si ya está asignado
@@ -166,6 +185,10 @@ export class RolService {
         throw new Error('Rol no encontrado');
       }
 
+      if (rol.nombre === 'super_admin') {
+        throw new Error('No se pueden modificar los permisos del Super Admin');
+      }
+
       await rolRepository.desasignarPermiso(rolId, permisoId);
 
       return {
@@ -181,7 +204,7 @@ export class RolService {
   static async obtenerPermisosDelRol(rolId: string) {
     try {
       const permisos = await rolRepository.obtenerPermisosDelRol(rolId);
-      
+
       return {
         success: true,
         data: permisos

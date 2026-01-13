@@ -16,11 +16,11 @@ export class RolPermisoRepository implements IRolPermisoRepository {
 
   async obtenerTodos(page: number = 1, limit: number = 10, rolId?: string, permisoId?: string): Promise<{ rolPermisos: RolPermiso[]; total: number }> {
     const where: any = {};
-    
+
     if (rolId) {
       where.rolId = rolId;
     }
-    
+
     if (permisoId) {
       where.permisoId = permisoId;
     }
@@ -99,9 +99,9 @@ export class RolPermisoRepository implements IRolPermisoRepository {
           select: {
             id: true,
             nombre: true,
-            descripcion: true,
+
             modulo: true,
-            accion: true
+
           }
         }
       }

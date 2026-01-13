@@ -1,5 +1,4 @@
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 
 const prisma = new PrismaClient();
@@ -7,7 +6,7 @@ const prisma = new PrismaClient();
 export async function seedSuperAdmin() {
   try {
     console.log('Creando Super Administrador...');
-    
+
     const superAdminRol = await prisma.rol.findUnique({
       where: { nombre: 'super_admin' }
     });
@@ -20,50 +19,47 @@ export async function seedSuperAdmin() {
 
     // Verificar si ya existe un usuario con este email
     const existingUser = await prisma.usuario.findUnique({
-      where: { email: 'davidzapata.dz051099@gmail.com' }
+      where: { email: 'feelinpay@gmail.com' }
     });
 
     if (existingUser) {
       console.log('Usuario ya existe, actualizando a Super Admin...');
-      
+
       await prisma.usuario.update({
         where: { id: existingUser.id },
         data: {
           rolId: superAdminRol.id,
-          googleSpreadsheetId: `sheet_${uuidv4()}`,
+          googleDriveFolderId: `folder_${uuidv4()}`,
           activo: true,
-          emailVerificado: true,
-          emailVerificadoAt: new Date(),
-          enPeriodoPrueba: false,
-          diasPruebaRestantes: 0
+          fechaInicioPrueba: new Date(),
+          fechaFinPrueba: null
         }
       });
-      
+
       return true;
     }
 
-    // Crear nuevo super admin
-    const hashedPassword = await bcrypt.hash('admin123', 10);
-    
+    // Crear nuevo super admin (requiere Google Sign-In)
+    // NOTA: Este usuario debe autenticarse por primera vez con Google Sign-In
+    // El googleId se asignará automáticamente en el primer login
     const superAdmin = await prisma.usuario.create({
       data: {
         id: uuidv4(),
         nombre: 'David Zapata',
-        telefono: '+51949325565',
-        email: 'davidzapata.dz051099@gmail.com',
-        password: hashedPassword,
+        email: 'feelinpay@gmail.com',
+        googleId: 'google_placeholder_superadmin', // Temporal, se reemplazará en primer login
         rolId: superAdminRol.id,
-        googleSpreadsheetId: `sheet_${uuidv4()}`,
+        googleDriveFolderId: `folder_${uuidv4()}`,
         activo: true,
-        emailVerificado: true,
-        emailVerificadoAt: new Date(),
-        enPeriodoPrueba: false,
-        diasPruebaRestantes: 0
+        fechaInicioPrueba: new Date(),
+        // SuperAdmin doesn't really need trial end date, but we can set it to null or far future
+        fechaFinPrueba: null
       }
     });
 
     console.log('Super Administrador creado exitosamente');
-    
+    console.log('IMPORTANTE: Debe autenticarse con Google Sign-In la primera vez');
+
     return true;
   } catch (error) {
     console.error('Error creando Super Admin:', error);
@@ -77,7 +73,8 @@ if (require.main === module) {
     .then((success) => {
       if (success) {
         console.log('Seeder de Super Admin completado');
-        console.log('Credenciales: davidzapata.dz051099@gmail.com / admin123');
+        console.log('Email: feelinpay@gmail.com');
+        console.log('Autenticación: Google Sign-In');
       } else {
         console.log('Error en seeder de Super Admin');
       }

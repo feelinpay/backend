@@ -1,19 +1,19 @@
 import { Request, Response } from 'express';
 import { MembresiaService } from '../services/membresiaService';
-import { 
-  createMembresiaSchema, 
-  updateMembresiaSchema, 
+import {
+  createMembresiaSchema,
+  updateMembresiaSchema,
   membresiaParamsSchema,
-  membresiaQuerySchema 
+  membresiaQuerySchema
 } from '../validators/membresiaValidators';
 
 // Crear nueva membresía
 export const crearMembresia = async (req: Request, res: Response) => {
   try {
-    const validatedData = createMembresiaSchema.parse(req.body);
-    
+    const validatedData = createMembresiaSchema.parse(req.body) as any;
+
     const result = await MembresiaService.crearMembresia(validatedData);
-    
+
     res.status(201).json(result);
   } catch (error: any) {
     if (error.name === 'ZodError') {
@@ -23,7 +23,7 @@ export const crearMembresia = async (req: Request, res: Response) => {
         errors: error.errors
       });
     }
-    
+
     res.status(400).json({
       success: false,
       message: error.message
@@ -35,9 +35,9 @@ export const crearMembresia = async (req: Request, res: Response) => {
 export const obtenerMembresias = async (req: Request, res: Response) => {
   try {
     const { page, limit, activa, search } = membresiaQuerySchema.parse(req.query);
-    
+
     const result = await MembresiaService.obtenerMembresias(page, limit, activa, search);
-    
+
     res.json(result);
   } catch (error: any) {
     if (error.name === 'ZodError') {
@@ -47,7 +47,7 @@ export const obtenerMembresias = async (req: Request, res: Response) => {
         errors: error.errors
       });
     }
-    
+
     res.status(500).json({
       success: false,
       message: error.message
@@ -59,9 +59,9 @@ export const obtenerMembresias = async (req: Request, res: Response) => {
 export const obtenerMembresiaPorId = async (req: Request, res: Response) => {
   try {
     const { id } = membresiaParamsSchema.parse(req.params);
-    
+
     const result = await MembresiaService.obtenerMembresiaPorId(id);
-    
+
     res.json(result);
   } catch (error: any) {
     if (error.name === 'ZodError') {
@@ -71,7 +71,7 @@ export const obtenerMembresiaPorId = async (req: Request, res: Response) => {
         errors: error.errors
       });
     }
-    
+
     res.status(404).json({
       success: false,
       message: error.message
@@ -83,10 +83,10 @@ export const obtenerMembresiaPorId = async (req: Request, res: Response) => {
 export const actualizarMembresia = async (req: Request, res: Response) => {
   try {
     const { id } = membresiaParamsSchema.parse(req.params);
-    const validatedData = updateMembresiaSchema.parse(req.body);
-    
+    const validatedData = updateMembresiaSchema.parse(req.body) as any;
+
     const result = await MembresiaService.actualizarMembresia(id, validatedData);
-    
+
     res.json(result);
   } catch (error: any) {
     if (error.name === 'ZodError') {
@@ -96,7 +96,7 @@ export const actualizarMembresia = async (req: Request, res: Response) => {
         errors: error.errors
       });
     }
-    
+
     res.status(400).json({
       success: false,
       message: error.message
@@ -108,9 +108,9 @@ export const actualizarMembresia = async (req: Request, res: Response) => {
 export const eliminarMembresia = async (req: Request, res: Response) => {
   try {
     const { id } = membresiaParamsSchema.parse(req.params);
-    
+
     const result = await MembresiaService.eliminarMembresia(id);
-    
+
     res.json(result);
   } catch (error: any) {
     if (error.name === 'ZodError') {
@@ -120,7 +120,7 @@ export const eliminarMembresia = async (req: Request, res: Response) => {
         errors: error.errors
       });
     }
-    
+
     res.status(400).json({
       success: false,
       message: error.message
@@ -132,7 +132,7 @@ export const eliminarMembresia = async (req: Request, res: Response) => {
 export const obtenerMembresiasActivas = async (req: Request, res: Response) => {
   try {
     const result = await MembresiaService.obtenerMembresiasActivas();
-    
+
     res.json(result);
   } catch (error: any) {
     res.status(500).json({

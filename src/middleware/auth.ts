@@ -19,10 +19,14 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     }
 
     const decoded = jwt.verify(token, jwtSecret) as any;
-    
+
+    if (!decoded || !decoded.id) {
+      return res.status(401).json({ error: 'Token inválido: ID de usuario no encontrado' });
+    }
+
     // Verificar que el usuario existe y está activo
     const usuario = await prisma.usuario.findUnique({
-      where: { id: decoded.userId },
+      where: { id: decoded.id },
       include: { rol: true }
     });
 
@@ -35,8 +39,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
       email: usuario.email,
       rol: usuario.rol.nombre,
       activo: usuario.activo,
-      emailVerificado: usuario.emailVerificado,
-      // licenciaActiva and fechaExpiracionLicencia removed from schema
+      googleId: usuario.googleId
     };
 
     next();
@@ -44,4 +47,23 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     console.error('Error en autenticación:', error);
     return res.status(403).json({ error: 'Token inválido' });
   }
+}
+
+// Middleware para verificar roles
+export const requireRole = (allowedRoles: string[]) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const userRole = (req as any).user?.rol;
+
+    if (!userRole) {
+      return res.status(403).json({ error: 'Rol no definido' });
+    }
+
+    if (!allowedRoles.includes(userRole)) {
+      return res.status(403).json({
+        error: 'Acceso denegado: No tienes permisos suficientes'
+      });
+    }
+
+    next();
+  };
 };

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { EmployeeRepository } from '../repositories/EmployeeRepository';
-import { 
+import {
   createEmployeeForUserSchema,
   updateEmployeeSchema,
   searchEmployeeSchema,
@@ -219,6 +219,21 @@ export const createEmployeeForUser = async (req: Request, res: Response) => {
       usuarioId: userId,
       nombre,
       telefono
+    });
+
+    // Generar horario laboral por defecto (Lunes a Domingo, 00:00 - 23:59)
+    // 1=Lunes, 7=Domingo (Stored as String '1', '2' etc. to match schema)
+    const diasSemana = [1, 2, 3, 4, 5, 6, 7];
+
+    // Usar createMany para eficiencia
+    await prisma.horarioLaboral.createMany({
+      data: diasSemana.map(dia => ({
+        empleadoId: empleado.id,
+        diaSemana: String(dia), // Convert explicit Int to String
+        horaInicio: '00:00',
+        horaFin: '23:59',
+        activo: true
+      }))
     });
 
     res.status(201).json({

@@ -78,9 +78,9 @@ export class TrialService {
         estaEnPeriodoPrueba: estaEnPrueba,
         diasRestantes,
         haExpirado,
-        mensaje: estaEnPrueba 
+        mensaje: estaEnPrueba
           ? `Tienes ${diasRestantes} días restantes de prueba`
-          : haExpirado 
+          : haExpirado
             ? 'Tu período de prueba ha expirado'
             : 'No estás en período de prueba'
       };
@@ -96,7 +96,7 @@ export class TrialService {
   }
 
   // Extender período de prueba (solo para super admin)
-  static async extenderPeriodoPrueba(usuarioId: string, diasAdicionales: number = 3) {
+  static async extenderPeriodoPrueba(_usuarioId: string, diasAdicionales: number = 3) {
     try {
       // Esta función requeriría modificar la fecha de creación o agregar un campo específico
       // Por ahora solo retornamos un mensaje de confirmación

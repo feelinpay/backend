@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { EmployeeRepository } from '../repositories/EmployeeRepository';
-import { 
+import {
   createEmployeeSchema,
   updateEmployeeSchema,
   searchEmployeeSchema,
@@ -23,7 +23,7 @@ const employeeRepository = new EmployeeRepository(prisma);
 export const getMyEmployees = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
-    
+
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -73,7 +73,7 @@ export const getMyEmployee = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
     const { employeeId } = req.params;
-    
+
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -128,7 +128,7 @@ export const getMyEmployee = async (req: Request, res: Response) => {
 export const createMyEmployee = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
-    
+
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -167,6 +167,20 @@ export const createMyEmployee = async (req: Request, res: Response) => {
       telefono
     });
 
+    // Crear horario laboral por defecto (24/7 todos los días)
+    const diasSemana = [1, 2, 3, 4, 5, 6, 7];
+
+    // Usar una transacción o crear en paralelo
+    await prisma.horarioLaboral.createMany({
+      data: diasSemana.map(dia => ({
+        empleadoId: empleado.id,
+        diaSemana: dia,
+        horaInicio: '00:00',
+        horaFin: '23:59',
+        activo: true
+      })) as any
+    });
+
     res.status(201).json({
       success: true,
       message: 'Empleado creado exitosamente',
@@ -186,7 +200,7 @@ export const updateMyEmployee = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
     const { employeeId } = req.params;
-    
+
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -271,7 +285,7 @@ export const toggleMyEmployeeStatus = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
     const { employeeId } = req.params;
-    
+
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -345,7 +359,7 @@ export const deleteMyEmployee = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
     const { employeeId } = req.params;
-    
+
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -402,7 +416,7 @@ export const deleteMyEmployee = async (req: Request, res: Response) => {
 export const searchMyEmployees = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
-    
+
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -452,7 +466,7 @@ export const searchMyEmployees = async (req: Request, res: Response) => {
 export const getMyEmployeesWithFilters = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
-    
+
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -526,7 +540,7 @@ export const getMyEmployeesWithFilters = async (req: Request, res: Response) => 
 export const getMyEmployeeStats = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
-    
+
     if (!userId) {
       return res.status(401).json({
         success: false,

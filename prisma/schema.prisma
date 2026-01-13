@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:../feelin_pay.db"
+  provider = "mysql"
+  url      = env("DATABASE_URL")
 }
 
 // Tabla de roles
@@ -26,20 +26,18 @@ model Rol {
 
 // Tabla de permisos - SISTEMA GRANULAR DE SEGURIDAD
 model Permiso {
-  id          String   @id @default(uuid())
-  nombre      String   @unique // "gestionar_usuarios", "ver_reportes", "registrar_empleados"
-  descripcion String
-  modulo      String   // "usuarios", "reportes", "empleados", "pagos", "licencias"
-  accion      String   @default("read") // "create", "read", "update", "delete", "inhabilitar", "reactivar"
-  activo      Boolean  @default(true)
-  
+  id        String   @id @default(uuid())
+  nombre    String   // Display Name
+  modulo    String   // Module
+  ruta      String?  // Frontend route
+  activo    Boolean  @default(true)
+
   // Auditoría
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   roles       RolPermiso[]
-  
-  @@unique([modulo, accion])
+
   @@map("permisos")
 }
 
@@ -62,25 +60,16 @@ model RolPermiso {
 model Usuario {
   id                  String   @id @default(uuid())
   nombre              String
-  telefono            String
   email               String   @unique
-  password            String
+  imagen              String?  // URL de la imagen de perfil (Google o personalizada)
+  googleId            String   @unique // ID de Google para autenticación
   rolId               String   // Referencia al rol
-  googleSpreadsheetId String   // ID único de Google Sheets para cada usuario
+  googleDriveFolderId String?  // ID de la carpeta de Google Drive del usuario
   activo              Boolean  @default(true)
   
   // Sistema de prueba
-  enPeriodoPrueba     Boolean  @default(false)
   fechaInicioPrueba   DateTime?
-  diasPruebaRestantes  Int      @default(0)
-  
-  // Verificación de email
-  emailVerificado     Boolean  @default(false)
-  emailVerificadoAt   DateTime?
-  
-  // Sistema de intentos OTP (integrado en usuario)
-  otpAttemptsToday    Int      @default(0)
-  lastOtpAttemptDate  DateTime?
+  fechaFinPrueba      DateTime? // Fecha exacta de fin de prueba
   
   // Auditoría
   createdAt           DateTime @default(now())
@@ -90,7 +79,6 @@ model Usuario {
   // Relaciones
   rol                 Rol      @relation(fields: [rolId], references: [id])
   empleados           Empleado[]
-  pagos               Pago[]
   membresias          MembresiaUsuario[]
   
   // Índices para optimizar consultas
@@ -114,9 +102,8 @@ model Empleado {
   usuario   Usuario  @relation(fields: [usuarioId], references: [id])
   
   // Relaciones para notificaciones y horarios
-  configuracionNotificacion ConfiguracionNotificacion?
+
   horariosLaborales         HorarioLaboral[]
-  breaksLaborales           BreakLaboral[]
   
   // Índices para optimizar consultas
   @@index([usuarioId])
@@ -124,34 +111,7 @@ model Empleado {
   @@map("empleados")
 }
 
-model Pago {
-  id                    String   @id @default(uuid())
-  usuarioId             String
-  nombrePagador         String   // Nombre del pagador
-  monto                 Float
-  fecha                 DateTime
-  codigoSeguridad       String   @unique // Código de seguridad de Yape (único)
-  registradoEnSheets    Boolean  @default(false)
-  notificadoEmpleados   Boolean  @default(false)
-  
-  // Campos adicionales
-  numeroTelefono        String?  // Número de teléfono del pagador
-  mensajeOriginal       String?  // Mensaje original de la notificación
-  
-  // Auditoría
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  procesadoAt           DateTime?
-  
-  usuario               Usuario @relation(fields: [usuarioId], references: [id])
-  
-  // Índices para optimizar consultas
-  @@index([usuarioId])
-  @@index([fecha])
-  @@index([registradoEnSheets])
-  @@index([codigoSeguridad])
-  @@map("pagos")
-}
+
 
 // Catálogo de membresías disponibles
 model Membresia {
@@ -201,27 +161,11 @@ model MembresiaUsuario {
 // SISTEMA DE NOTIFICACIONES Y HORARIOS LABORALES
 // ========================================
 
-// Configuración de notificaciones por empleado
-model ConfiguracionNotificacion {
-  id                    String   @id @default(uuid())
-  empleadoId            String   @unique
-  notificacionesActivas Boolean  @default(true)
-  
-  // Auditoría
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  
-  // Relación
-  empleado             Empleado @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
-  
-  @@map("configuracion_notificaciones")
-}
-
 // Horarios laborales por día de la semana
 model HorarioLaboral {
   id           String   @id @default(uuid())
   empleadoId   String
-  diaSemana    Int      // 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado, 7=Domingo
+  diaSemana    String   // "Lunes", "Martes", etc.
   horaInicio   String   // "09:00" formato 24h
   horaFin      String   // "18:00" formato 24h
   activo       Boolean  @default(true)
@@ -233,48 +177,7 @@ model HorarioLaboral {
   // Relación
   empleado     Empleado @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
   
-  // Constraint único por empleado y día
-  @@unique([empleadoId, diaSemana])
+  // Permitir múltiples horarios por día (Horario Partido)
+  @@index([empleadoId, diaSemana])
   @@map("horarios_laborales")
-}
-
-// Breaks o descansos laborales por día
-model BreakLaboral {
-  id           String   @id @default(uuid())
-  empleadoId   String
-  diaSemana    Int      // 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado, 7=Domingo
-  horaInicio   String   // "12:00" formato 24h
-  horaFin      String   // "13:00" formato 24h
-  activo       Boolean  @default(true)
-  
-  // Auditoría
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  // Relación
-  empleado     Empleado @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
-  
-  // Constraint único por empleado y día
-  @@unique([empleadoId, diaSemana])
-  @@map("breaks_laborales")
-}
-
-
-// Modelo simplificado para códigos OTP (solo uno por usuario)
-model OtpCode {
-  id          String   @id @default(uuid())
-  email       String   // Email del usuario
-  codigo      String   // Código de 6 dígitos
-  tipo        String   // "EMAIL_VERIFICATION", "PASSWORD_RESET", "LOGIN_VERIFICATION"
-  expiraEn    DateTime // 10 minutos desde creación
-  usado       Boolean  @default(false)
-  intentos    Int      @default(0) // Número de intentos fallidos
-  maxIntentos Int      @default(3) // Máximo 3 intentos
-  
-  // Auditoría
-  createdAt   DateTime @default(now())
-  
-  // Constraint único por email y tipo
-  @@unique([email, tipo])
-  @@map("otp_codes")
 }

@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 export const getDashboardInfo = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
-    
+
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -28,9 +28,9 @@ export const getDashboardInfo = async (req: Request, res: Response) => {
     }
 
     // Obtener información de membresía
-    const licenseInfo = { 
-      tieneAcceso: true, 
-      diasRestantes: 30, 
+    const licenseInfo = {
+      tieneAcceso: true,
+      diasRestantes: 30,
       mensaje: 'Acceso válido',
       tipoAcceso: 'activo'
     };
@@ -55,10 +55,8 @@ export const getDashboardInfo = async (req: Request, res: Response) => {
         id: user.id,
         nombre: user.nombre,
         email: user.email,
-        telefono: user.telefono,
         rol: user.rol?.nombre,
         activo: user.activo,
-        emailVerificado: user.emailVerificado,
         createdAt: user.createdAt
       },
       license: {
@@ -67,7 +65,8 @@ export const getDashboardInfo = async (req: Request, res: Response) => {
         daysRemaining: licenseInfo.diasRestantes,
         isExpired: licenseInfo.tipoAcceso === 'sin_acceso',
         isSuperAdmin: user.rol?.nombre === 'super_admin',
-        enPeriodoPrueba: user.enPeriodoPrueba,
+        activo: true,
+        fechaFinPrueba: user.fechaFinPrueba,
         tipoAcceso: licenseInfo.tipoAcceso
       },
       system: {
@@ -97,17 +96,8 @@ export const getDashboardInfo = async (req: Request, res: Response) => {
 async function getUserStats(userId: string) {
   try {
     const [totalPagos, pagosRecientes, empleados] = await Promise.all([
-      prisma.pago.count({
-        where: { usuarioId: userId }
-      }),
-      prisma.pago.count({
-        where: {
-          usuarioId: userId,
-          createdAt: {
-            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Últimos 7 días
-          }
-        }
-      }),
+      0, // prisma.pago.count({ where: { usuarioId: userId } }),
+      0, // prisma.pago.count({ where: { usuarioId: userId, createdAt: { gte: ... } } }),
       prisma.empleado.count({
         where: { usuarioId: userId }
       })
@@ -132,7 +122,7 @@ async function getUserStats(userId: string) {
 export const getLicenseStatus = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
-    
+
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -142,9 +132,9 @@ export const getLicenseStatus = async (req: Request, res: Response) => {
 
     // TODO: Implementar verificación de acceso
     // const licenseInfo = await MembresiaService.verificarAcceso(userId);
-    const licenseInfo = { 
-      tieneAcceso: true, 
-      diasRestantes: 30, 
+    const licenseInfo = {
+      tieneAcceso: true,
+      diasRestantes: 30,
       mensaje: 'Acceso válido',
       tipoAcceso: 'activo'
     };

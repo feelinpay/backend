@@ -2,10 +2,10 @@ import { z } from 'zod';
 
 // Validador para crear horario laboral
 export const horarioLaboralSchema = z.object({
-  diaSemana: z.number()
-    .int('El día de la semana debe ser un número entero')
-    .min(1, 'El día de la semana debe ser entre 1 y 7')
-    .max(7, 'El día de la semana debe ser entre 1 y 7'),
+  diaSemana: z.number({
+    required_error: 'El día de la semana es requerido',
+    invalid_type_error: 'El día debe ser un número'
+  }).int().min(1).max(7, 'Día inválido (1-7)'),
   horaInicio: z.string()
     .regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Formato de hora inválido (HH:MM)')
     .min(1, 'La hora de inicio es requerida'),
@@ -27,11 +27,7 @@ export const horarioLaboralSchema = z.object({
 
 // Validador para actualizar horario laboral
 export const updateHorarioLaboralSchema = z.object({
-  diaSemana: z.number()
-    .int('El día de la semana debe ser un número entero')
-    .min(1, 'El día de la semana debe ser entre 1 y 7')
-    .max(7, 'El día de la semana debe ser entre 1 y 7')
-    .optional(),
+  diaSemana: z.number().int().min(1).max(7).optional(),
   horaInicio: z.string()
     .regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Formato de hora inválido (HH:MM)')
     .optional(),

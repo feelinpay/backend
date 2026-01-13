@@ -2,9 +2,8 @@
 export interface Permiso {
   id: string;
   nombre: string;
-  descripcion: string;
   modulo: string;
-  accion: string;
+  ruta?: string | null;
   activo: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -12,17 +11,15 @@ export interface Permiso {
 
 export interface CreatePermisoDto {
   nombre: string;
-  descripcion: string;
   modulo: string;
-  accion: string;
+  ruta?: string;
   activo?: boolean;
 }
 
 export interface UpdatePermisoDto {
   nombre?: string;
-  descripcion?: string;
   modulo?: string;
-  accion?: string;
+  ruta?: string;
   activo?: boolean;
 }
 
@@ -30,6 +27,5 @@ export interface PermisoWithRoles extends Permiso {
   roles: {
     id: string;
     nombre: string;
-    descripcion: string;
   }[];
 }

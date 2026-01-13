@@ -103,3 +103,7 @@ Thumbs.db
 
 # Prisma
 prisma/migrations/
+
+# Secrets
+service-account.json
+.env

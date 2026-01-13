@@ -9,12 +9,45 @@ export class MembresiaUsuarioService {
     try {
       // Verificar si el usuario ya tiene una membresía activa
       const tieneActiva = await membresiaUsuarioRepository.tieneMembresiaActiva(data.usuarioId);
-      
+
       if (tieneActiva) {
         throw new Error('El usuario ya tiene una membresía activa');
       }
 
-      const membresiaUsuario = await membresiaUsuarioRepository.crear(data);
+      // 4. LÓGICA DE FECHAS INTELIGENTE
+      // Obtener usuario para verificar su prueba actual
+      const prismaLocal = new (require('@prisma/client').PrismaClient)();
+      const usuario = await prismaLocal.usuario.findUnique({
+        where: { id: data.usuarioId }
+      });
+
+      let fechaInicio = new Date(data.fechaInicio);
+      let fechaExpiracion = new Date(data.fechaExpiracion);
+
+      // Si el usuario aún está en periodo de prueba, la membresía inicia al día siguiente
+      if (usuario?.fechaFinPrueba) {
+        const finPrueba = new Date(usuario.fechaFinPrueba);
+        const hoy = new Date();
+
+        if (finPrueba > hoy) {
+          // Inicia el día siguiente a que termine la prueba
+          fechaInicio = new Date(finPrueba);
+          fechaInicio.setDate(fechaInicio.getDate() + 1);
+
+          // Recalcular fecha de expiración basada en la duración original
+          const diffTime = Math.abs(new Date(data.fechaExpiracion).getTime() - new Date(data.fechaInicio).getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+          fechaExpiracion = new Date(fechaInicio);
+          fechaExpiracion.setDate(fechaExpiracion.getDate() + diffDays);
+        }
+      }
+
+      const membresiaUsuario = await membresiaUsuarioRepository.crear({
+        ...data,
+        fechaInicio,
+        fechaExpiracion
+      });
 
       return {
         success: true,
@@ -30,7 +63,7 @@ export class MembresiaUsuarioService {
   static async obtenerTodas(page: number = 1, limit: number = 10, activa?: boolean, usuarioId?: string, search?: string) {
     try {
       const result = await membresiaUsuarioRepository.obtenerTodas(page, limit, activa, usuarioId, search);
-      
+
       return {
         success: true,
         data: {
@@ -52,7 +85,7 @@ export class MembresiaUsuarioService {
   static async obtenerPorUsuario(usuarioId: string) {
     try {
       const membresias = await membresiaUsuarioRepository.obtenerPorUsuario(usuarioId);
-      
+
       return {
         success: true,
         data: membresias
@@ -66,7 +99,7 @@ export class MembresiaUsuarioService {
   static async obtenerActivaPorUsuario(usuarioId: string) {
     try {
       const membresia = await membresiaUsuarioRepository.obtenerActivaPorUsuario(usuarioId);
-      
+
       if (!membresia) {
         return {
           success: true,
@@ -127,7 +160,7 @@ export class MembresiaUsuarioService {
   static async extenderMembresia(id: string, diasAdicionales: number) {
     try {
       const membresiaUsuario = await membresiaUsuarioRepository.obtenerPorId(id);
-      
+
       if (!membresiaUsuario) {
         throw new Error('Membresía de usuario no encontrada');
       }
@@ -153,7 +186,7 @@ export class MembresiaUsuarioService {
   static async obtenerQueExpiranEn(dias: number = 7) {
     try {
       const membresias = await membresiaUsuarioRepository.obtenerQueExpiranEn(dias);
-      
+
       return {
         success: true,
         data: membresias,

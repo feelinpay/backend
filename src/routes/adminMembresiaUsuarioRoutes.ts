@@ -9,7 +9,9 @@ import {
   actualizarMembresiaUsuario,
   eliminarMembresiaUsuario,
   verificarMembresiaActiva,
-  extenderMembresiaUsuario
+  extenderMembresiaUsuario,
+  asignarORenovarMembresia,
+  obtenerEstadoMembresia
 } from '../controllers/adminMembresiaUsuarioController';
 
 const router = Router();
@@ -44,5 +46,11 @@ router.patch('/membresias/:id/extender', extenderMembresiaUsuario);
 
 // DELETE /api/super-admin/usuarios/membresias/:id - Eliminar membresía de usuario
 router.delete('/membresias/:id', eliminarMembresiaUsuario);
+
+// POST /api/super-admin/usuarios/membresias/assign - Asignar o renovar membresía (smart)
+router.post('/membresias/assign', asignarORenovarMembresia);
+
+// GET /api/super-admin/usuarios/:usuarioId/membresias/status - Obtener estado de membresía
+router.get('/:usuarioId/membresias/status', obtenerEstadoMembresia);
 
 export default router;

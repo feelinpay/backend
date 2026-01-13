@@ -9,7 +9,7 @@ import {
   eliminarPermiso,
   obtenerPermisoConRoles,
   obtenerPermisosPorModulo,
-  obtenerPermisosPorAccion
+
 } from '../controllers/adminPermisoController';
 
 const router = Router();
@@ -33,7 +33,7 @@ router.get('/:id/roles', obtenerPermisoConRoles);
 router.get('/modulo/:modulo', obtenerPermisosPorModulo);
 
 // GET /api/super-admin/permisos/accion/:accion - Obtener permisos por acción
-router.get('/accion/:accion', obtenerPermisosPorAccion);
+
 
 // POST /api/super-admin/permisos - Crear nuevo permiso
 router.post('/', crearPermiso);

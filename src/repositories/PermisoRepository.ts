@@ -9,9 +9,8 @@ export class PermisoRepository implements IPermisoRepository {
     return await prisma.permiso.create({
       data: {
         nombre: data.nombre,
-        descripcion: data.descripcion,
         modulo: data.modulo,
-        accion: data.accion,
+        ruta: data.ruta,
         activo: data.activo ?? true
       }
     });
@@ -19,21 +18,20 @@ export class PermisoRepository implements IPermisoRepository {
 
   async obtenerTodos(page: number = 1, limit: number = 10, activo?: boolean, search?: string, modulo?: string): Promise<{ permisos: Permiso[]; total: number }> {
     const where: any = {};
-    
+
     if (activo !== undefined) {
       where.activo = activo;
     }
-    
+
     if (modulo) {
       where.modulo = modulo;
     }
-    
+
     if (search) {
       where.OR = [
         { nombre: { contains: search, mode: 'insensitive' } },
-        { descripcion: { contains: search, mode: 'insensitive' } },
         { modulo: { contains: search, mode: 'insensitive' } },
-        { accion: { contains: search, mode: 'insensitive' } }
+        { ruta: { contains: search, mode: 'insensitive' } }
       ];
     }
 
@@ -47,7 +45,7 @@ export class PermisoRepository implements IPermisoRepository {
       prisma.permiso.count({ where })
     ]);
 
-    return { permisos, total };
+    return { permisos: permisos as Permiso[], total };
   }
 
   async obtenerPorId(id: string): Promise<Permiso | null> {
@@ -57,7 +55,14 @@ export class PermisoRepository implements IPermisoRepository {
   }
 
   async obtenerPorNombre(nombre: string): Promise<Permiso | null> {
-    return await prisma.permiso.findUnique({
+    // nombre is not unique in schema anymore according to my last edit?
+    // Wait, let's check schema again. I removed @unique from nombre?
+    // "nombre String // Display Name". Yes, I removed @unique.
+    // So findUnique({ where: { nombre } }) will FAIL if I use it.
+    // I should use findFirst or restore unique context if needed.
+    // But for now, repository interface says "obtenerPorNombre" returns "Permiso | null".
+    // I will use findFirst.
+    return await prisma.permiso.findFirst({
       where: { nombre }
     });
   }
@@ -90,18 +95,8 @@ export class PermisoRepository implements IPermisoRepository {
 
   async obtenerPorModulo(modulo: string): Promise<Permiso[]> {
     return await prisma.permiso.findMany({
-      where: { 
+      where: {
         modulo,
-        activo: true
-      },
-      orderBy: { nombre: 'asc' }
-    });
-  }
-
-  async obtenerPorAccion(accion: string): Promise<Permiso[]> {
-    return await prisma.permiso.findMany({
-      where: { 
-        accion,
         activo: true
       },
       orderBy: { nombre: 'asc' }
