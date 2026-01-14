@@ -107,23 +107,59 @@ export const googleDriveService = {
     },
 
     /**
-     * Checks if a daily payment sheet exists in the specified folder.
-     * If not, creates one with the correct headers.
-     * @param folderId The Google Drive Folder ID
+     * Ensures a "Reporte de Pagos - Feelin Pay" folder exists in the user's folder.
+     * Creates daily payment sheets inside this folder only when payments are received.
+     * @param userFolderId The Google Drive Folder ID of the user
      * @returns The Spreadsheet ID of the daily sheet
      */
-    async ensureDailyPaymentSheet(folderId: string): Promise<string> {
+    async ensureDailyPaymentSheet(userFolderId: string): Promise<string> {
         const today = new Date();
-        const dateString = today.toISOString().split('T')[0]; // YYYY-MM-DD
-        const sheetName = `Yapeos-${dateString}`;
+        // Formato DD-MM-YYYY para el nombre del archivo
+        const day = today.getDate().toString().padStart(2, '0');
+        const month = (today.getMonth() + 1).toString().padStart(2, '0');
+        const year = today.getFullYear();
+        const dateString = `${day}-${month}-${year}`; // 13-01-2026
+        const sheetName = dateString; // Solo la fecha como nombre
 
         try {
-            // 1. Search for existing file
-            // query: name = 'Yapeos-2024-05-20' and 'folderId' in parents and trash = false
-            const query = `name = '${sheetName}' and '${folderId}' in parents and trashed = false and mimeType = 'application/vnd.google-apps.spreadsheet'`;
+            // 1. Buscar o crear la carpeta "Reporte de Pagos - Feelin Pay"
+            const reportFolderName = 'Reporte de Pagos - Feelin Pay';
+            let reportFolderId: string;
+
+            // Buscar carpeta existente
+            const folderQuery = `name = '${reportFolderName}' and '${userFolderId}' in parents and trashed = false and mimeType = 'application/vnd.google-apps.folder'`;
+            const folderRes = await drive.files.list({
+                q: folderQuery,
+                fields: 'files(id, name)',
+                spaces: 'drive',
+            });
+
+            if (folderRes.data.files && folderRes.data.files.length > 0) {
+                reportFolderId = folderRes.data.files[0].id!;
+                console.log(`Found existing report folder: ${reportFolderId}`);
+            } else {
+                // Crear carpeta "Reporte de Pagos - Feelin Pay"
+                console.log(`Creating report folder: ${reportFolderName}`);
+                const folderMetadata = {
+                    name: reportFolderName,
+                    mimeType: 'application/vnd.google-apps.folder',
+                    parents: [userFolderId],
+                };
+
+                const folder = await drive.files.create({
+                    requestBody: folderMetadata,
+                    fields: 'id',
+                });
+
+                reportFolderId = folder.data.id!;
+                console.log(`Report folder created: ${reportFolderId}`);
+            }
+
+            // 2. Buscar sheet del día dentro de la carpeta de reportes
+            const sheetQuery = `name = '${sheetName}' and '${reportFolderId}' in parents and trashed = false and mimeType = 'application/vnd.google-apps.spreadsheet'`;
 
             const res = await drive.files.list({
-                q: query,
+                q: sheetQuery,
                 fields: 'files(id, name)',
                 spaces: 'drive',
             });
@@ -135,7 +171,7 @@ export const googleDriveService = {
                 return sheetId;
             }
 
-            // 2. Not found, create it
+            // 3. No existe, crear sheet del día
             console.log(`Creating new daily sheet: ${sheetName}`);
 
             // Create spreadsheet
@@ -150,9 +186,7 @@ export const googleDriveService = {
 
             const spreadsheetId = spreadsheet.data.spreadsheetId!;
 
-            // 3. Move/Add it to the correct folder
-            // (The 'create' method for sheets creates it in root by default, we need to move it)
-            // Retrieve the current parents to remove them
+            // 4. Mover el sheet a la carpeta de reportes
             const file = await drive.files.get({
                 fileId: spreadsheetId,
                 fields: 'parents',
@@ -162,21 +196,22 @@ export const googleDriveService = {
 
             await drive.files.update({
                 fileId: spreadsheetId,
-                addParents: folderId,
+                addParents: reportFolderId,
                 removeParents: previousParents,
                 fields: 'id, parents',
             });
 
-            // 4. Initialize Headers
+            // 5. Inicializar Headers
             await sheets.spreadsheets.values.update({
                 spreadsheetId,
-                range: 'A1:D1',
+                range: 'A1:E1', // Agregamos columna E para Medio de Pago
                 valueInputOption: 'RAW',
                 requestBody: {
-                    values: [['Nombre del yapeador', 'Monto', 'Fecha y hora exacta', 'Código de seguridad']],
+                    values: [['Nombre del yapeador', 'Monto', 'Fecha y hora exacta', 'Código de seguridad', 'Medio de Pago']],
                 },
             });
 
+            console.log(`Daily sheet created: ${spreadsheetId} in folder ${reportFolderId}`);
             return spreadsheetId;
 
         } catch (error) {

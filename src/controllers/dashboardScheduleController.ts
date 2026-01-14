@@ -24,8 +24,7 @@ export const getMyHorariosLaborales = async (req: Request, res: Response) => {
     const empleado = await prisma.empleado.findFirst({
       where: {
         id: employeeId,
-        usuarioId: userId,
-        activo: true
+        usuarioId: userId
       }
     });
 
@@ -72,8 +71,7 @@ export const createMyHorarioLaboral = async (req: Request, res: Response) => {
     const empleado = await prisma.empleado.findFirst({
       where: {
         id: employeeId,
-        usuarioId: userId,
-        activo: true
+        usuarioId: userId
       }
     });
 
@@ -139,8 +137,7 @@ export const updateMyHorarioLaboral = async (req: Request, res: Response) => {
     const empleado = await prisma.empleado.findFirst({
       where: {
         id: employeeId,
-        usuarioId: userId,
-        activo: true
+        usuarioId: userId
       }
     });
 
@@ -222,8 +219,7 @@ export const deleteMyHorarioLaboral = async (req: Request, res: Response) => {
     const empleado = await prisma.empleado.findFirst({
       where: {
         id: employeeId,
-        usuarioId: userId,
-        activo: true
+        usuarioId: userId
       }
     });
 

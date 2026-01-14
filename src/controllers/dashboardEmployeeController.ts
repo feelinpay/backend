@@ -164,11 +164,12 @@ export const createMyEmployee = async (req: Request, res: Response) => {
     const empleado = await employeeRepository.create({
       usuarioId: userId,
       nombre,
-      telefono
-    });
+      telefono,
+      activo: true // FORCE ACTIVE to ensure it appears in the app
+    } as any);
 
     // Crear horario laboral por defecto (24/7 todos los días)
-    const diasSemana = [1, 2, 3, 4, 5, 6, 7];
+    const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
     // Usar una transacción o crear en paralelo
     await prisma.horarioLaboral.createMany({

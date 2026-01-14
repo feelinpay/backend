@@ -13,7 +13,8 @@ export const procesarPagoYape = async (req: Request, res: Response) => {
       usuarioId,
       nombrePagador,
       monto,
-      codigoSeguridad
+      codigoSeguridad,
+      medioDePago // 'Yape' o 'Plin'
     } = req.body;
 
     // Validar datos requeridos
@@ -49,7 +50,8 @@ export const procesarPagoYape = async (req: Request, res: Response) => {
         nombrePagador,
         monto: parseFloat(monto),
         fecha: new Date().toLocaleString('es-PE'), // Formato local
-        codigoSeguridad
+        codigoSeguridad,
+        medioDePago: medioDePago || 'Yape' // Default a Yape si no se especifica
       });
 
       // NOTIFICAR A EMPLEADOS (FCM)

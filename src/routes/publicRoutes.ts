@@ -17,7 +17,7 @@ router.patch('/auth/password', authenticateToken, changePassword);
 
 // Health check
 router.get('/health', (req, res) => {
-  console.log('✅ Health check hit!');
+  // console.log('✅ Health check hit!'); // Silenced for production noise reduction
   res.json({
     success: true,
     message: 'Servidor funcionando correctamente',
