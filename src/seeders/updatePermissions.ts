@@ -75,10 +75,9 @@ async function updatePermissions() {
             // Propietario gets: Dashboard, Empleados, Horarios, Sistema (partial?), Membresias (maybe?)
             // Let's give them a subset.
             const propietarioPerms = [
-                'Dashboard Principal',
+                'Ver Dashboard',
                 'Mis Empleados',
-                'Horarios y Jornadas',
-                'Gestión de Membresías' // Assuming they manage their own
+                'Configuración del Sistema'
             ];
 
             const perms = await prisma.permiso.findMany({

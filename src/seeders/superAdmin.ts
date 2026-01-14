@@ -45,7 +45,7 @@ export async function seedSuperAdmin() {
     const superAdmin = await prisma.usuario.create({
       data: {
         id: uuidv4(),
-        nombre: 'David Zapata',
+        nombre: 'Feelin Pay',
         email: 'feelinpay@gmail.com',
         googleId: 'google_placeholder_superadmin', // Temporal, se reemplazará en primer login
         rolId: superAdminRol.id,

@@ -64,7 +64,7 @@ async function initDatabase() {
       { nombre: 'Gestión de Permisos', modulo: 'roles', ruta: '/permissions-management' },
 
       // Sistema (Apunta a permisos de Android)
-      { nombre: 'Configuración Sistema', modulo: 'sistema', ruta: '/permissions' },
+      { nombre: 'Configuración del Sistema', modulo: 'sistema', ruta: '/permissions' },
 
       // Reportes
       { nombre: 'Reportes de Membresías', modulo: 'reportes', ruta: '/membership-reports' },
@@ -100,14 +100,14 @@ async function initDatabase() {
     await asignar(propietarioRole.id, [
       'Ver Dashboard',
       'Mis Empleados',
-      'Configuración Sistema'
+      'Configuración del Sistema'
     ]);
 
     // 6. Usuario Super Admin
     console.log('Creando usuario...');
     await prisma.usuario.create({
       data: {
-        nombre: 'David Zapata',
+        nombre: 'Feelin Pay',
         email: 'feelinpay@gmail.com',
         googleId: '104068593847385938457',
         rolId: superAdminRole.id,
