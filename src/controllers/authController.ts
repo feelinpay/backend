@@ -156,24 +156,30 @@ export const googleLogin = async (req: Request, res: Response) => {
 
       if (needsFolderCreation) {
         try {
-          console.log(`Creando/Restaurando carpeta Drive para ${email}...`);
+          console.log(`📂 [Auth] Verifying Drive folder for ${email}...`);
 
-          // 1. Intentar buscar si ya existe una carpeta con ese nombre (para evitar duplicados)
+          // 1. CRITICAL: Search for EXISTING folder first to avoid duplicates
+          // Use exact name match inside 'findFolderByName'
           let folderId = await googleDriveService.findFolderByName('Reporte de Pagos - Feelin Pay');
 
           if (folderId) {
-            console.log(`Carpeta encontrada existente: ${folderId}, reusando...`);
+            console.log(`✅ [Auth] Found existing folder: ${folderId}. Reusing.`);
           } else {
-            // 2. Si no existe, crearla
+            // 2. Only create if absolutely NOT found
+            console.log(`✨ [Auth] No folder found. Creating new 'Reporte de Pagos - Feelin Pay'...`);
             folderId = await googleDriveService.createFolder('Reporte de Pagos - Feelin Pay');
+            console.log(`✅ [Auth] New folder created: ${folderId}`);
           }
 
           if (folderId) {
+            // 3. Ensure shared permission
+            console.log(`🔗 [Auth] Ensuring folder is shared with ${email}...`);
             await googleDriveService.shareFolder(folderId, email);
             updateData.googleDriveFolderId = folderId;
           }
         } catch (driveError) {
-          console.error('Error recuperando/creando carpeta Drive para usuario existente:', driveError);
+          console.error('❌ [Auth] Error managing Drive folder:', driveError);
+          // Do not fail login, but log critical error
         }
       }
 

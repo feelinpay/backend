@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { googleSheetService } from '../services/googleSheetService';
+import { googleDriveService } from '../services/googleDriveService'; // Import necesario para Auto-Healing
 import { TrialService } from '../services/trialService';
 import { fcmService } from '../services/fcmService';
 import { MembresiaUsuarioService } from '../services/membresiaUsuarioService';
@@ -23,12 +24,15 @@ export const procesarPagoYape = async (req: Request, res: Response) => {
 
     console.log('Datos extraídos:', { usuarioId, nombrePagador, monto, codigoSeguridad, medioDePago });
 
-    // Validar datos requeridos
-    if (!usuarioId || !nombrePagador || !monto || !codigoSeguridad) {
+    // Validar datos requeridos (codigoSeguridad es opcional para medioDePago 'plin')
+    const esPlin = medioDePago?.toLowerCase() === 'plin';
+    const hasRequired = usuarioId && nombrePagador && monto && (esPlin || codigoSeguridad);
+
+    if (!hasRequired) {
       console.log('❌ VALIDACIÓN FALLIDA - Datos faltantes');
       return res.status(400).json({
         success: false,
-        message: 'Datos requeridos: usuarioId, nombrePagador, monto, codigoSeguridad'
+        message: 'Datos requeridos: usuarioId, nombrePagador, monto, codigoSeguridad (solo para Yape)'
       });
     }
 
@@ -96,57 +100,14 @@ export const procesarPagoYape = async (req: Request, res: Response) => {
     }
     // ==========================================
 
-    // Registrar en Google Sheet Diario
-    console.log('📊 Intentando registrar en Google Sheets...');
-    console.log(`   Folder ID: ${usuario.googleDriveFolderId}`);
-    try {
-      await googleSheetService.addPaymentRow(usuario.googleDriveFolderId, {
-        nombrePagador,
-        monto: parseFloat(monto),
-        fecha: new Date().toLocaleString('es-PE'), // Formato local
-        codigoSeguridad,
-        medioDePago: medioDePago || 'Yape' // Default a Yape si no se especifica
-      });
-      console.log('✅ Pago registrado en Google Sheets exitosamente');
-
-      // NOTIFICAR A EMPLEADOS (FCM)
-      try {
-        // Enviar al topic del negocio (business_{usuarioId})
-        const topic = `business_${usuarioId}`;
-        const title = '💰 Nuevo Pago Yape Recibido';
-        const body = `${nombrePagador} ha pagado S/ ${monto}. Código: ${codigoSeguridad}`;
-
-        await fcmService.sendToTopic(topic, title, body, {
-          type: 'PAYMENT_RECEIVED',
-          amount: String(monto),
-          payer: nombrePagador,
-          code: codigoSeguridad
-        });
-
-        console.log(`Notificación enviada al topic ${topic}`);
-      } catch (fcmError) {
-        console.error('Error enviando notificación FCM:', fcmError);
-        // No fallamos la request si la notificación falla, pero lo logeamos
-      }
-
-    } catch (sheetError) {
-      console.error('Error registrando en Sheets:', sheetError);
-      return res.status(500).json({
-        success: false,
-        message: 'Error registrando el pago en Google Sheets',
-        error: sheetError instanceof Error ? sheetError.message : String(sheetError)
-      });
-    }
-
-
     // ==========================================
-    // LÓGICA DE SMS (VERIFICAR HORARIOS)
+    // 1. LÓGICA DE SMS (VERIFICAR HORARIOS) - PRIORIDAD 1
     // ==========================================
     console.log('📱 Iniciando lógica de SMS...');
     const numerosParaSMS: string[] = [];
 
     try {
-      // 1. Obtener empleados activos del usuario
+      // Obtener empleados activos del usuario
       console.log(`🔍 Buscando empleados activos para usuario: ${usuarioId}`);
       const empleados = await prisma.empleado.findMany({
         where: {
@@ -159,16 +120,13 @@ export const procesarPagoYape = async (req: Request, res: Response) => {
       });
       console.log(`   Empleados encontrados: ${empleados.length}`);
 
-      // 2. Calcular hora actual en Perú (UTC-5)
-      // Usamos una fecha base y ajustamos
+      // Calcular hora actual en Perú (UTC-5)
       const now = new Date();
       const peruTimeData = now.toLocaleString("en-US", { timeZone: "America/Lima" });
       const peruDate = new Date(peruTimeData);
       console.log(`⏰ Hora actual en Perú: ${peruDate.toLocaleTimeString('es-PE')}`);
 
-      // 3. Filtrar por Horario
-      // Prisma usa 1=Lunes, 7=Domingo (ISO)
-      // JS getDay() usa 0=Domingo, 1=Lunes...
+      // Filtrar por Horario
       const jsDay = peruDate.getDay();
       const currentIsoDay = jsDay === 0 ? 7 : jsDay;
       console.log(`   Día de la semana (ISO): ${currentIsoDay}`);
@@ -186,9 +144,9 @@ export const procesarPagoYape = async (req: Request, res: Response) => {
         }
         console.log(`      Teléfono: ${emp.telefono}`);
 
-        // Comparar con Int (1-7)
-        const horariosHoy = emp.horariosLaborales.filter(h => (h.diaSemana as any) === currentIsoDay && h.activo);
-        console.log(`      Horarios hoy: ${horariosHoy.length}`);
+        // Comparar con Int (1-7) - FIX: Convertir ambos a String para asegurar match
+        const horariosHoy = emp.horariosLaborales.filter(h => String(h.diaSemana) === String(currentIsoDay) && h.activo);
+        console.log(`      Horarios hoy: ${horariosHoy.length} (Buscando día: ${currentIsoDay})`);
 
         let isWorking = false;
         for (const h of horariosHoy) {
@@ -227,16 +185,67 @@ export const procesarPagoYape = async (req: Request, res: Response) => {
     }
     // ==========================================
 
+
+    // ==========================================
+    // 2. REGISTRO EN GOOGLE SHEETS (COMENTADO TEMPORALMENTE POR QUOTA)
+    // ==========================================
+    console.log('📊 Intentando registrar en Google Sheets...');
+    console.log(`   Folder ID: ${usuario.googleDriveFolderId}`);
+    let driveSuccess = false;
+    let driveErrorMsg = "Modo Bypass activado: Drive deshabilitado temporalmente.";
+
+    // [TODO: DESCOMENTAR CUANDO SE RESUELVA BILLING/QUOTA]
+    /*
+    try {
+      await googleSheetService.addPaymentRow(usuario.googleDriveFolderId, {
+        nombrePagador,
+        monto: parseFloat(monto),
+        fecha: new Date().toLocaleString('es-PE'),
+        codigoSeguridad,
+        medioDePago: medioDePago || 'Yape'
+      });
+      console.log('✅ Pago registrado en Google Sheets exitosamente');
+      driveSuccess = true;
+      driveErrorMsg = null;
+    } catch (sheetError: any) {
+      console.error('❌ Error registrando en Sheets (BYPASS ACTIVO):', sheetError.message);
+      driveSuccess = false;
+      driveErrorMsg = sheetError.message || String(sheetError);
+      console.log('⚠️ Continuando flujo...');
+    }
+    */
+    console.log('⚠️ [DRIVE BYPASS] Saltando registro en Drive para priorizar SMS.');
+
+    // NOTIFICAR A EMPLEADOS (FCM) - Mantenemos esto activo
+    try {
+      const topic = `business_${usuarioId}`;
+      const title = `💰 Nuevo Pago ${medioDePago || 'Yape'} Recibido`;
+      const codeMsg = codigoSeguridad ? `. Código: ${codigoSeguridad}` : '';
+      const body = `${nombrePagador} ha pagado S/ ${monto}${codeMsg}`;
+
+      await fcmService.sendToTopic(topic, title, body, {
+        type: 'PAYMENT_RECEIVED',
+        amount: String(monto),
+        payer: nombrePagador,
+        code: codigoSeguridad
+      });
+      console.log(`Notificación enviada al topic ${topic}`);
+    } catch (fcmError) {
+      console.error('Error enviando notificación FCM:', fcmError);
+    }
+
+
     res.status(201).json({
       success: true,
-      message: 'Pago registrado exitosamente en Google Drive, notificado y procesado para SMS',
+      message: 'Pago procesado (SMS Prioritario). Drive saltado temporalmente.',
       data: {
         nombrePagador,
         monto,
         codigoSeguridad,
-        registradoEnDrive: true,
+        registradoEnDrive: false,
+        driveError: driveErrorMsg,
         notificado: true,
-        smsTargets: numerosParaSMS // Devolver lista para que el Frontend envíe el SMS
+        smsTargets: numerosParaSMS
       }
     });
 
@@ -250,32 +259,4 @@ export const procesarPagoYape = async (req: Request, res: Response) => {
   }
 };
 
-// Endpoints obsoletos (Stubbed para evitar errores de frontend)
-export const obtenerPagosUsuario = async (req: Request, res: Response) => {
-  res.json({
-    success: true,
-    data: {
-      pagos: [],
-      pagination: {
-        page: 1,
-        limit: 10,
-        total: 0,
-        pages: 0
-      }
-    }
-  });
-};
 
-export const obtenerEstadisticasPagos = async (req: Request, res: Response) => {
-  res.json({
-    success: true,
-    data: {
-      totalPagos: 0,
-      pagosHoy: 0,
-      pagosEstaSemana: 0,
-      montoTotal: 0,
-      montoHoy: 0,
-      montoEstaSemana: 0
-    }
-  });
-};

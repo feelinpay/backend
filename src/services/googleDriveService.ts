@@ -62,7 +62,7 @@ export const googleDriveService = {
             return null;
         } catch (error) {
             console.error('Error searching for folder:', error);
-            return null;
+            throw error; // Re-throw to prevent false negatives in controller logic
         }
     },
 
@@ -122,38 +122,13 @@ export const googleDriveService = {
         const sheetName = dateString; // Solo la fecha como nombre
 
         try {
-            // 1. Buscar o crear la carpeta "Reporte de Pagos - Feelin Pay"
-            const reportFolderName = 'Reporte de Pagos - Feelin Pay';
-            let reportFolderId: string;
+            // 1. Asumimos que userFolderId YA ES la carpeta de reportes (guardada en BD desde authController)
+            const reportFolderId = userFolderId;
+            // console.log(`Using Report Folder ID: ${reportFolderId}`);
 
-            // Buscar carpeta existente
-            const folderQuery = `name = '${reportFolderName}' and '${userFolderId}' in parents and trashed = false and mimeType = 'application/vnd.google-apps.folder'`;
-            const folderRes = await drive.files.list({
-                q: folderQuery,
-                fields: 'files(id, name)',
-                spaces: 'drive',
-            });
-
-            if (folderRes.data.files && folderRes.data.files.length > 0) {
-                reportFolderId = folderRes.data.files[0].id!;
-                console.log(`Found existing report folder: ${reportFolderId}`);
-            } else {
-                // Crear carpeta "Reporte de Pagos - Feelin Pay"
-                console.log(`Creating report folder: ${reportFolderName}`);
-                const folderMetadata = {
-                    name: reportFolderName,
-                    mimeType: 'application/vnd.google-apps.folder',
-                    parents: [userFolderId],
-                };
-
-                const folder = await drive.files.create({
-                    requestBody: folderMetadata,
-                    fields: 'id',
-                });
-
-                reportFolderId = folder.data.id!;
-                console.log(`Report folder created: ${reportFolderId}`);
-            }
+            // Verificar si tenemos acceso básico (opcional, pero útil para depurar)
+            // const exists = await this.checkFolderExists(reportFolderId);
+            // if (!exists) throw new Error("Report folder not accessible");
 
             // 2. Buscar sheet del día dentro de la carpeta de reportes
             const sheetQuery = `name = '${sheetName}' and '${reportFolderId}' in parents and trashed = false and mimeType = 'application/vnd.google-apps.spreadsheet'`;
@@ -174,32 +149,26 @@ export const googleDriveService = {
             // 3. No existe, crear sheet del día
             console.log(`Creating new daily sheet: ${sheetName}`);
 
-            // Create spreadsheet
-            const spreadsheet = await sheets.spreadsheets.create({
-                requestBody: {
-                    properties: {
-                        title: sheetName,
-                    },
-                },
-                fields: 'spreadsheetId',
+            // 3. No existe, crear sheet del día
+            console.log(`Creating new daily sheet (via Drive API): ${sheetName}`);
+
+            // Usamos Drive API para crear el archivo directamente en la carpeta
+            // Esto evita errores de permisos de Sheets API en la creación y el movimiento
+            const fileMetadata = {
+                name: sheetName,
+                mimeType: 'application/vnd.google-apps.spreadsheet',
+                parents: [reportFolderId]
+            };
+
+            const file = await drive.files.create({
+                requestBody: fileMetadata,
+                fields: 'id',
             });
 
-            const spreadsheetId = spreadsheet.data.spreadsheetId!;
+            const spreadsheetId = file.data.id!;
+            console.log(`Sheet created via Drive API: ${spreadsheetId}`);
 
-            // 4. Mover el sheet a la carpeta de reportes
-            const file = await drive.files.get({
-                fileId: spreadsheetId,
-                fields: 'parents',
-            });
-
-            const previousParents = file.data.parents?.join(',') || '';
-
-            await drive.files.update({
-                fileId: spreadsheetId,
-                addParents: reportFolderId,
-                removeParents: previousParents,
-                fields: 'id, parents',
-            });
+            // Omitimos el paso de mover porque ya lo creamos en parents: [reportFolderId]
 
             // 5. Inicializar Headers
             await sheets.spreadsheets.values.update({
