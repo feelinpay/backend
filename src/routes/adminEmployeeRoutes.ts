@@ -2,20 +2,18 @@ import { Router } from 'express';
 import { authenticateToken } from '../middleware/auth';
 import { requireSuperAdmin } from '../middleware/superAdminAuth';
 import {
-  getEmployeesByUser,
-  getEmployeeByUser,
-  createEmployeeForUser,
-  updateEmployeeByUser,
-  deleteEmployeeByUser,
-  searchEmployeesByUser,
-  getEmployeeStatsByUser
+    getEmployeesByUser,
+    getEmployeeByUser,
+    createEmployeeForUser,
+    updateEmployeeByUser,
+    deleteEmployeeByUser,
+    searchEmployeesByUser,
+    getEmployeeStatsByUser
 } from '../controllers/adminEmployeeController';
 
 import {
-  getHorariosLaborales,
-  createHorarioLaboral,
-  updateHorarioLaboral,
-  deleteHorarioLaboral
+    getHorariosLaborales,
+    updateHorarioLaboral
 } from '../controllers/adminScheduleController';
 
 const router = Router();
@@ -39,11 +37,10 @@ router.put('/users/:userId/employees/:employeeId', updateEmployeeByUser); // Act
 router.delete('/users/:userId/employees/:employeeId', deleteEmployeeByUser); // Eliminar empleado del usuario
 
 // ========================================
-// RUTAS PARA HORARIOS LABORALES
+// RUTAS PARA HORARIOS LABORALES (JSON)
 // ========================================
 router.get('/users/:userId/employees/:employeeId/horarios-laborales', getHorariosLaborales);
-router.post('/users/:userId/employees/:employeeId/horarios-laborales', createHorarioLaboral);
-router.put('/users/:userId/employees/:employeeId/horarios-laborales/:horarioId', updateHorarioLaboral);
-router.delete('/users/:userId/employees/:employeeId/horarios-laborales/:horarioId', deleteHorarioLaboral);
+router.put('/users/:userId/employees/:employeeId/horarios-laborales', updateHorarioLaboral);
+// create y delete se manejan dentro del PUT del horario completo
 
 export default router;

@@ -102,9 +102,8 @@ model Empleado {
   usuario   Usuario  @relation(fields: [usuarioId], references: [id])
   
   // Relaciones para notificaciones y horarios
+  horarioLaboral    Json?     // Almacena el horario laboral en formato JSON
 
-  horariosLaborales         HorarioLaboral[]
-  
   // Índices para optimizar consultas
   @@index([usuarioId])
   @@index([activo])
@@ -157,27 +156,5 @@ model MembresiaUsuario {
   @@map("membresias_usuarios")
 }
 
-// ========================================
-// SISTEMA DE NOTIFICACIONES Y HORARIOS LABORALES
-// ========================================
+// El sistema de horarios ahora se maneja vía JSON en el modelo Empleado
 
-// Horarios laborales por día de la semana
-model HorarioLaboral {
-  id           String   @id @default(uuid())
-  empleadoId   String
-  diaSemana    String   // "Lunes", "Martes", etc.
-  horaInicio   String   // "09:00" formato 24h
-  horaFin      String   // "18:00" formato 24h
-  activo       Boolean  @default(true)
-  
-  // Auditoría
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  // Relación
-  empleado     Empleado @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
-  
-  // Permitir múltiples horarios por día (Horario Partido)
-  @@index([empleadoId, diaSemana])
-  @@map("horarios_laborales")
-}

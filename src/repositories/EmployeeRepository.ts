@@ -2,7 +2,7 @@ import { PrismaClient, Empleado } from '@prisma/client';
 import { IEmployeeRepository, CreateEmployeeData, UpdateEmployeeData, EmployeeStats } from '../interfaces/IEmployeeRepository';
 
 export class EmployeeRepository implements IEmployeeRepository {
-  constructor(private prisma: PrismaClient) {}
+  constructor(private prisma: PrismaClient) { }
 
   async create(data: CreateEmployeeData): Promise<Empleado> {
     return await this.prisma.empleado.create({
@@ -10,10 +10,12 @@ export class EmployeeRepository implements IEmployeeRepository {
         usuarioId: data.usuarioId,
         nombre: data.nombre,
         telefono: data.telefono,
-        activo: true
+        activo: true,
+        horarioLaboral: data.horarioLaboral
       }
     });
   }
+
 
   async findById(id: string): Promise<Empleado | null> {
     return await this.prisma.empleado.findUnique({
@@ -23,7 +25,7 @@ export class EmployeeRepository implements IEmployeeRepository {
 
   async findByUserId(usuarioId: string, page: number = 1, limit: number = 20): Promise<{ empleados: Empleado[], total: number }> {
     const skip = (page - 1) * limit;
-    
+
     const [empleados, total] = await Promise.all([
       this.prisma.empleado.findMany({
         where: { usuarioId },
@@ -45,7 +47,8 @@ export class EmployeeRepository implements IEmployeeRepository {
       data: {
         ...(data.nombre && { nombre: data.nombre }),
         ...(data.telefono && { telefono: data.telefono }),
-        ...(typeof data.activo === 'boolean' && { activo: data.activo })
+        ...(typeof data.activo === 'boolean' && { activo: data.activo }),
+        ...(data.horarioLaboral && { horarioLaboral: data.horarioLaboral })
       }
     });
   }
@@ -58,7 +61,7 @@ export class EmployeeRepository implements IEmployeeRepository {
 
   async searchByUserId(usuarioId: string, searchTerm: string, page: number = 1, limit: number = 20): Promise<{ empleados: Empleado[], total: number }> {
     const skip = (page - 1) * limit;
-    
+
     const where = {
       usuarioId,
       OR: [
@@ -137,11 +140,11 @@ export class EmployeeRepository implements IEmployeeRepository {
       this.prisma.empleado.count({ where: { usuarioId } }),
       this.prisma.empleado.count({ where: { usuarioId, activo: true } }),
       this.prisma.empleado.count({ where: { usuarioId, activo: false } }),
-      this.prisma.empleado.count({ 
-        where: { 
-          usuarioId, 
-          createdAt: { gte: thirtyDaysAgo } 
-        } 
+      this.prisma.empleado.count({
+        where: {
+          usuarioId,
+          createdAt: { gte: thirtyDaysAgo }
+        }
       })
     ]);
 

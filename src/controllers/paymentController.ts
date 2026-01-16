@@ -19,14 +19,21 @@ export const procesarPagoYape = async (req: Request, res: Response) => {
       nombrePagador,
       monto,
       codigoSeguridad,
-      medioDePago // 'Yape' o 'Plin'
+      medioDePago, // 'Yape' o 'Plin'
+      googleAccessToken // NUEVO: Token para operaciones privadas
     } = req.body;
 
     console.log('Datos extraídos:', { usuarioId, nombrePagador, monto, codigoSeguridad, medioDePago });
 
+    if (googleAccessToken) {
+      console.log('🔑 Token de acceso de Google recibido. Usando almacenamiento del usuario.');
+    } else {
+      console.log('⚠️ Sin token de acceso de Google. Usando almacenamiento del sistema (Service Account).');
+    }
+
     // Validar datos requeridos (codigoSeguridad es opcional para medioDePago 'plin')
     const esPlin = medioDePago?.toLowerCase() === 'plin';
-    const hasRequired = usuarioId && nombrePagador && monto && (esPlin || codigoSeguridad);
+    const hasRequired = usuarioId && nombrePagador && (monto !== undefined && monto !== null && monto !== '') && (esPlin || codigoSeguridad);
 
     if (!hasRequired) {
       console.log('❌ VALIDACIÓN FALLIDA - Datos faltantes');
@@ -113,11 +120,9 @@ export const procesarPagoYape = async (req: Request, res: Response) => {
         where: {
           usuarioId: usuarioId,
           activo: true
-        },
-        include: {
-          horariosLaborales: true
         }
       });
+
       console.log(`   Empleados encontrados: ${empleados.length}`);
 
       // Calcular hora actual en Perú (UTC-5)
@@ -144,11 +149,23 @@ export const procesarPagoYape = async (req: Request, res: Response) => {
         }
         console.log(`      Teléfono: ${emp.telefono}`);
 
-        // Comparar con Int (1-7) - FIX: Convertir ambos a String para asegurar match
-        const horariosHoy = emp.horariosLaborales.filter(h => String(h.diaSemana) === String(currentIsoDay) && h.activo);
-        console.log(`      Horarios hoy: ${horariosHoy.length} (Buscando día: ${currentIsoDay})`);
+        // Mapear día ISO a nombre en español
+        const diasSemanaMap: { [key: string]: string } = {
+          '1': 'Lunes', '2': 'Martes', '3': 'Miércoles', '4': 'Jueves',
+          '5': 'Viernes', '6': 'Sábado', '7': 'Domingo'
+        };
+        const diaNombre = diasSemanaMap[String(currentIsoDay)];
+
+        // Obtener horarios del JSON
+        const horarioLaboral = emp.horarioLaboral as any;
+        const horariosHoy = (horarioLaboral && horarioLaboral[diaNombre])
+          ? (horarioLaboral[diaNombre] as any[]).filter(h => h.activo)
+          : [];
+
+        console.log(`      Horarios hoy (${diaNombre}): ${horariosHoy.length}`);
 
         let isWorking = false;
+
         for (const h of horariosHoy) {
           if (!h.horaInicio || !h.horaFin) continue;
 
@@ -187,34 +204,98 @@ export const procesarPagoYape = async (req: Request, res: Response) => {
 
 
     // ==========================================
-    // 2. REGISTRO EN GOOGLE SHEETS (COMENTADO TEMPORALMENTE POR QUOTA)
+    // 2. REGISTRO EN GOOGLE SHEETS
     // ==========================================
     console.log('📊 Intentando registrar en Google Sheets...');
-    console.log(`   Folder ID: ${usuario.googleDriveFolderId}`);
+    console.log(`   Folder ID Reference: ${usuario.googleDriveFolderId}`);
     let driveSuccess = false;
-    let driveErrorMsg = "Modo Bypass activado: Drive deshabilitado temporalmente.";
+    let driveErrorMsg: string | null = null;
 
-    // [TODO: DESCOMENTAR CUANDO SE RESUELVA BILLING/QUOTA]
-    /*
     try {
-      await googleSheetService.addPaymentRow(usuario.googleDriveFolderId, {
-        nombrePagador,
-        monto: parseFloat(monto),
-        fecha: new Date().toLocaleString('es-PE'),
-        codigoSeguridad,
-        medioDePago: medioDePago || 'Yape'
-      });
+      await googleSheetService.addPaymentRow(
+        usuario.googleDriveFolderId,
+        {
+          nombrePagador,
+          monto: parseFloat(monto),
+          fecha: new Date().toLocaleString('es-PE'),
+          codigoSeguridad,
+          medioDePago: medioDePago || 'Yape'
+        },
+        googleAccessToken
+      );
       console.log('✅ Pago registrado en Google Sheets exitosamente');
       driveSuccess = true;
       driveErrorMsg = null;
     } catch (sheetError: any) {
-      console.error('❌ Error registrando en Sheets (BYPASS ACTIVO):', sheetError.message);
-      driveSuccess = false;
-      driveErrorMsg = sheetError.message || String(sheetError);
-      console.log('⚠️ Continuando flujo...');
+      console.error('❌ Error registrando en Sheets:', sheetError.message);
+
+      // ==========================================
+      // AUTO-HEALING: Recrear carpeta si no existe
+      // ==========================================
+      // Nota: Con User Auth, esto es menos probable ya que ensureDailyPaymentSheet crea la carpeta si no existe.
+      // Pero mantenemos la lógica por si el ID guardado es incorrecto o para flujos legacy.
+      if (sheetError.message?.includes('Report folder not accessible') ||
+        sheetError.message?.includes('404') ||
+        sheetError.message?.includes('not found')) {
+
+        console.log('🛠️ Iniciando Auto-Healing de carpeta Drive...');
+        try {
+          let newFolderId: string | null = null;
+
+          if (googleAccessToken) {
+            // Si tenemos token de usuario, aseguramos que exista la carpeta en SU drive
+            newFolderId = await googleDriveService.findFolderByName('Reporte de Pagos - Feelin Pay', googleAccessToken);
+            if (!newFolderId) {
+              newFolderId = await googleDriveService.createFolder('Reporte de Pagos - Feelin Pay', googleAccessToken);
+            }
+          } else {
+            // Fallback Service Account
+            newFolderId = await googleDriveService.findFolderByName('Reporte de Pagos - Feelin Pay');
+            if (!newFolderId) {
+              newFolderId = await googleDriveService.createFolder('Reporte de Pagos - Feelin Pay');
+            }
+          }
+
+          if (newFolderId) {
+            // Solo compartir si es Service Account (el usuario ya es dueño si usa su token)
+            if (!googleAccessToken) {
+              await googleDriveService.shareFolder(newFolderId, usuario.email);
+            }
+
+            // 4. Actualizar en BD para el futuro
+            await prisma.usuario.update({
+              where: { id: usuario.id },
+              data: { googleDriveFolderId: newFolderId }
+            });
+
+            console.log(`✅ Carpeta recuperada: ${newFolderId}. Reintentando registro...`);
+
+            // 5. REINTENTAR el registro una última vez con el nuevo ID
+            await googleSheetService.addPaymentRow(
+              newFolderId,
+              {
+                nombrePagador,
+                monto: parseFloat(monto),
+                fecha: new Date().toLocaleString('es-PE'),
+                codigoSeguridad,
+                medioDePago: medioDePago || 'Yape'
+              },
+              googleAccessToken
+            );
+
+            driveSuccess = true;
+            driveErrorMsg = null;
+          }
+        } catch (repairError: any) {
+          console.error('❌ Error crítico en Auto-Healing:', repairError.message);
+          driveSuccess = false;
+          driveErrorMsg = `Fallo en Auto-Healing: ${repairError.message}`;
+        }
+      } else {
+        driveSuccess = false;
+        driveErrorMsg = sheetError.message || String(sheetError);
+      }
     }
-    */
-    console.log('⚠️ [DRIVE BYPASS] Saltando registro en Drive para priorizar SMS.');
 
     // NOTIFICAR A EMPLEADOS (FCM) - Mantenemos esto activo
     try {
@@ -237,12 +318,12 @@ export const procesarPagoYape = async (req: Request, res: Response) => {
 
     res.status(201).json({
       success: true,
-      message: 'Pago procesado (SMS Prioritario). Drive saltado temporalmente.',
+      message: 'Pago procesado exitosamente.',
       data: {
         nombrePagador,
         monto,
         codigoSeguridad,
-        registradoEnDrive: false,
+        registradoEnDrive: driveSuccess,
         driveError: driveErrorMsg,
         notificado: true,
         smsTargets: numerosParaSMS
@@ -258,5 +339,3 @@ export const procesarPagoYape = async (req: Request, res: Response) => {
     });
   }
 };
-
-

@@ -38,6 +38,9 @@ export const googleLogin = async (req: Request, res: Response) => {
 
     // console.log('🔍 [GoogleLogin] Payload received:', { email, name, hasPicture: !!picture, pictureUrl: picture });
 
+    // Extraer Folder ID si viene desde el cliente
+    const { googleDriveFolderId } = req.body;
+
     if (!email) {
       return res.status(400).json({
         success: false,
@@ -74,24 +77,29 @@ export const googleLogin = async (req: Request, res: Response) => {
         return res.status(500).json({ success: false, message: 'Rol propietario no encontrado' });
       }
 
-      // Crear carpeta en Google Drive para registros de pago
-      let folderId = null;
-      try {
-        // Nombre más amigable para el usuario
-        // Primero verificamos si ya existe para no crear duplicados
-        folderId = await googleDriveService.findFolderByName('Reporte de Pagos - Feelin Pay');
+      // Crear carpeta en Google Drive para registros de pago (Fallback si la app no la envió)
+      let folderId = googleDriveFolderId || null;
 
-        if (!folderId) {
-          folderId = await googleDriveService.createFolder('Reporte de Pagos - Feelin Pay');
-        }
+      if (!folderId) {
+        try {
+          // Nombre más amigable para el usuario
+          // Primero verificamos si ya existe para no crear duplicados
+          folderId = await googleDriveService.findFolderByName('Reporte de Pagos - Feelin Pay');
 
-        if (folderId) {
-          // Compartir la carpeta con el usuario para que la vea en su Drive
-          await googleDriveService.shareFolder(folderId, email);
+          if (!folderId) {
+            folderId = await googleDriveService.createFolder('Reporte de Pagos - Feelin Pay');
+          }
+
+          if (folderId) {
+            // Compartir la carpeta con el usuario para que la vea en su Drive
+            await googleDriveService.shareFolder(folderId, email);
+          }
+        } catch (driveError) {
+          console.error('Error creando carpeta de Drive (Fallback):', driveError);
+          // No bloqueamos el registro, pero logueamos el error
         }
-      } catch (driveError) {
-        console.error('Error creando carpeta de Drive:', driveError);
-        // No bloqueamos el registro, pero logueamos el error
+      } else {
+        console.log('✅ Usando Folder ID provisto por la App:', folderId);
       }
 
       // Crear nuevo usuario
@@ -142,8 +150,14 @@ export const googleLogin = async (req: Request, res: Response) => {
         updateData.imagen = picture;
       }
 
+      // IMPORTANTE: Actualizar Folder ID si la app envió uno nuevo/diferente
+      if (googleDriveFolderId && googleDriveFolderId !== user.googleDriveFolderId) {
+        console.log('🔄 Actualizando Folder ID desde App:', googleDriveFolderId);
+        updateData.googleDriveFolderId = googleDriveFolderId;
+      }
+
       // IMPORTANTE: Verificar siempre si tiene carpeta
-      let needsFolderCreation = !user.googleDriveFolderId;
+      let needsFolderCreation = !user.googleDriveFolderId && !googleDriveFolderId;
 
       // Si tiene ID en BD, verificar que exista realmente en Drive
       if (user.googleDriveFolderId) {

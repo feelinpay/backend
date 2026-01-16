@@ -39,11 +39,11 @@ router.put('/employees/:employeeId', updateMyEmployee); // Actualizar mi emplead
 router.delete('/employees/:employeeId', deleteMyEmployee); // Eliminar mi empleado
 
 // ========================================
-// RUTAS PARA HORARIOS LABORALES
+// RUTAS PARA HORARIOS LABORALES (JSON)
 // ========================================
 router.get('/employees/:employeeId/horarios-laborales', getMyHorariosLaborales);
-router.post('/employees/:employeeId/horarios-laborales', createMyHorarioLaboral);
-router.put('/employees/:employeeId/horarios-laborales/:horarioId', updateMyHorarioLaboral);
-router.delete('/employees/:employeeId/horarios-laborales/:horarioId', deleteMyHorarioLaboral);
+router.put('/employees/:employeeId/horarios-laborales', updateMyHorarioLaboral);
+// create y delete se manejan dentro del PUT del horario completo
+
 
 export default router;

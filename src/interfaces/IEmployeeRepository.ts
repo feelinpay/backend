@@ -7,16 +7,16 @@ export interface IEmployeeRepository {
   findByUserId(usuarioId: string, page?: number, limit?: number): Promise<{ empleados: Empleado[], total: number }>;
   update(id: string, data: UpdateEmployeeData): Promise<Empleado>;
   delete(id: string): Promise<Empleado>;
-  
+
   // Operaciones de búsqueda y filtrado
   searchByUserId(usuarioId: string, searchTerm: string, page?: number, limit?: number): Promise<{ empleados: Empleado[], total: number }>;
   findByPhone(usuarioId: string, telefono: string): Promise<Empleado | null>;
-  
+
   // Operaciones de estado
   toggleStatus(id: string): Promise<Empleado>;
   getActiveByUserId(usuarioId: string): Promise<Empleado[]>;
   getInactiveByUserId(usuarioId: string): Promise<Empleado[]>;
-  
+
   // Estadísticas
   getStatsByUserId(usuarioId: string): Promise<EmployeeStats>;
 }
@@ -25,12 +25,17 @@ export interface CreateEmployeeData {
   usuarioId: string;
   nombre: string;
   telefono: string;
+  horarioLaboral?: any;
+  activo?: boolean;
 }
+
+
 
 export interface UpdateEmployeeData {
   nombre?: string;
   telefono?: string;
   activo?: boolean;
+  horarioLaboral?: any;
 }
 
 export interface EmployeeStats {

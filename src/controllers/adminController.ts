@@ -10,6 +10,44 @@ const crearUsuarioSchema = z.object({
   rolId: z.string().uuid()
 });
 
+/**
+ * Helper para formatear la respuesta del usuario de forma consistente
+ */
+const formatUserResponse = (usuario: any) => {
+  let diasRestantes = 0;
+  let enPeriodoPrueba = false;
+
+  if (usuario.fechaFinPrueba) {
+    const ahora = new Date();
+    const fin = new Date(usuario.fechaFinPrueba);
+
+    if (fin > ahora) {
+      enPeriodoPrueba = true;
+      const diferenciaMs = fin.getTime() - ahora.getTime();
+      diasRestantes = Math.ceil(diferenciaMs / (1000 * 60 * 60 * 24));
+    }
+  }
+
+  return {
+    id: usuario.id,
+    nombre: usuario.nombre,
+    email: usuario.email,
+    googleId: usuario.googleId,
+    rolId: usuario.rolId,
+    rol: usuario.rol, // Objeto completo del rol
+    activo: usuario.activo,
+    enPeriodoPrueba: enPeriodoPrueba,
+    diasPruebaRestantes: diasRestantes,
+    fechaInicioPrueba: usuario.fechaInicioPrueba,
+    fechaFinPrueba: usuario.fechaFinPrueba,
+    imagen: usuario.imagen,
+    createdAt: usuario.createdAt,
+    updatedAt: usuario.updatedAt,
+    lastLoginAt: usuario.lastLoginAt
+  };
+};
+
+
 // Obtener todos los usuarios (Solo Super Admin)
 export const obtenerTodosUsuarios = async (req: Request, res: Response) => {
   try {
@@ -18,45 +56,12 @@ export const obtenerTodosUsuarios = async (req: Request, res: Response) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    const usuariosSinPassword = usuarios.map(usuario => {
-      // Cálculo dinámico de días de prueba
-      let diasRestantes = 0;
-      let enPeriodoPrueba = false;
-
-      if (usuario.fechaFinPrueba) {
-        const ahora = new Date();
-        const fin = new Date(usuario.fechaFinPrueba);
-
-        if (fin > ahora) {
-          enPeriodoPrueba = true;
-          const diferenciaMs = fin.getTime() - ahora.getTime();
-          diasRestantes = Math.ceil(diferenciaMs / (1000 * 60 * 60 * 24));
-        }
-      }
-
-      return {
-        id: usuario.id,
-        nombre: usuario.nombre,
-        email: usuario.email,
-        googleId: usuario.googleId,
-        rolId: usuario.rolId,
-        rol: usuario.rol,
-        activo: usuario.activo,
-        enPeriodoPrueba: enPeriodoPrueba, // Calculated
-        diasPruebaRestantes: diasRestantes, // Calculated
-        fechaInicioPrueba: usuario.fechaInicioPrueba,
-        fechaFinPrueba: usuario.fechaFinPrueba,
-        imagen: usuario.imagen,
-        createdAt: usuario.createdAt,
-        updatedAt: usuario.updatedAt,
-        lastLoginAt: usuario.lastLoginAt
-      };
-    });
+    const usuariosFormateados = usuarios.map(usuario => formatUserResponse(usuario));
 
     res.json({
       success: true,
       data: {
-        usuarios: usuariosSinPassword,
+        usuarios: usuariosFormateados,
         total: usuarios.length
       }
     });
@@ -91,18 +96,12 @@ export const crearUsuario = async (req: Request, res: Response) => {
         fechaFinPrueba: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 días de prueba
       },
       include: { rol: true }
-    }) as any;
+    });
 
     res.status(201).json({
       success: true,
       message: 'Usuario creado correctamente',
-      data: {
-        id: nuevoUsuario.id,
-        nombre: nuevoUsuario.nombre,
-        email: nuevoUsuario.email,
-        rol: nuevoUsuario.rol.nombre,
-        activo: nuevoUsuario.activo
-      }
+      data: formatUserResponse(nuevoUsuario)
     });
   } catch (error: any) {
     console.error('Error creando usuario:', error);
@@ -137,26 +136,21 @@ export const actualizarUsuario = async (req: Request, res: Response) => {
       });
     }
 
+    const { rolId, ...updateData } = validatedData;
+
     const usuarioActualizado = await prisma.usuario.update({
       where: { id },
       data: {
-        ...validatedData,
-        rol: validatedData.rolId ? { connect: { id: validatedData.rolId } } : undefined,
-        rolId: undefined // Evitar duplicidad si se usa connect
+        ...updateData,
+        rol: rolId ? { connect: { id: rolId } } : undefined,
       } as any,
       include: { rol: true }
-    }) as any;
+    });
 
     res.json({
       success: true,
       message: 'Usuario actualizado correctamente',
-      data: {
-        id: usuarioActualizado.id,
-        nombre: usuarioActualizado.nombre,
-        email: usuarioActualizado.email,
-        rol: usuarioActualizado.rol.nombre,
-        activo: usuarioActualizado.activo
-      }
+      data: formatUserResponse(usuarioActualizado)
     });
   } catch (error: any) {
     console.error('Error actualizando usuario:', error);
@@ -209,28 +203,26 @@ export const toggleUsuario = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
+    // Si no se envía 'activo' en el body, simplemente toggleamos el estado actual
+    const nuevoEstado = activo !== undefined ? activo : !usuario.activo;
+
     const usuarioActualizado = await prisma.usuario.update({
       where: { id },
-      data: { activo },
+      data: { activo: nuevoEstado },
       include: { rol: true }
     });
 
     res.json({
       success: true,
-      message: `Usuario ${activo ? 'activado' : 'desactivado'} correctamente`,
-      data: {
-        id: usuarioActualizado.id,
-        nombre: usuarioActualizado.nombre,
-        email: usuarioActualizado.email,
-        rol: usuarioActualizado.rol.nombre,
-        activo: usuarioActualizado.activo
-      }
+      message: `Usuario ${nuevoEstado ? 'activado' : 'desactivado'} correctamente`,
+      data: formatUserResponse(usuarioActualizado)
     });
   } catch (error) {
     console.error('Error actualizando usuario:', error);
     res.status(500).json({ success: false, message: 'Error interno del servidor' });
   }
 };
+
 
 
 // Extender período de prueba

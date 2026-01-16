@@ -160,27 +160,26 @@ export const createMyEmployee = async (req: Request, res: Response) => {
       });
     }
 
-    // Crear empleado
+    // Horario laboral por defecto (24/7 todos los días)
+    const defaultSchedule = {
+      'Lunes': [{ horaInicio: '00:00', horaFin: '23:59', activo: true }],
+      'Martes': [{ horaInicio: '00:00', horaFin: '23:59', activo: true }],
+      'Miércoles': [{ horaInicio: '00:00', horaFin: '23:59', activo: true }],
+      'Jueves': [{ horaInicio: '00:00', horaFin: '23:59', activo: true }],
+      'Viernes': [{ horaInicio: '00:00', horaFin: '23:59', activo: true }],
+      'Sábado': [{ horaInicio: '00:00', horaFin: '23:59', activo: true }],
+      'Domingo': [{ horaInicio: '00:00', horaFin: '23:59', activo: true }]
+    };
+
+    // Crear empleado con horario por defecto
     const empleado = await employeeRepository.create({
       usuarioId: userId,
       nombre,
       telefono,
-      activo: true // FORCE ACTIVE to ensure it appears in the app
-    } as any);
-
-    // Crear horario laboral por defecto (24/7 todos los días)
-    const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-
-    // Usar una transacción o crear en paralelo
-    await prisma.horarioLaboral.createMany({
-      data: diasSemana.map(dia => ({
-        empleadoId: empleado.id,
-        diaSemana: dia,
-        horaInicio: '00:00',
-        horaFin: '23:59',
-        activo: true
-      })) as any
+      activo: true, // FORCE ACTIVE to ensure it appears in the app
+      horarioLaboral: defaultSchedule
     });
+
 
     res.status(201).json({
       success: true,

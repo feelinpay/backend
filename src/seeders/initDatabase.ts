@@ -10,7 +10,6 @@ async function initDatabase() {
     console.log('Limpiando base de datos...');
     await prisma.membresiaUsuario.deleteMany();
     await prisma.rolPermiso.deleteMany();
-    await prisma.horarioLaboral.deleteMany();
 
     await prisma.empleado.deleteMany();
     await prisma.usuario.deleteMany();

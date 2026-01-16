@@ -22,31 +22,31 @@ export interface PaymentData {
 export const googleSheetService = {
     /**
      * Appends a payment row to the daily sheet in the user's specific folder.
-     * @param folderId The Google Drive Folder ID of the user.
-     * @param data Payment data (Name, Amount, Date, Code, Payment Method).
      */
-    async addPaymentRow(folderId: string, data: PaymentData): Promise<void> {
+    async addPaymentRow(folderId: string, data: PaymentData, accessToken?: string): Promise<void> {
         try {
             // 1. Get current daily sheet ID (or create it if needed)
-            const spreadsheetId = await googleDriveService.ensureDailyPaymentSheet(folderId);
+            const spreadsheetId = await googleDriveService.ensureDailyPaymentSheet(folderId, accessToken);
 
             // 2. Prepare Row Data
-            // Order: 'Nombre del yapeador', 'Monto', 'Fecha y hora exacta', 'Código de seguridad', 'Medio de Pago'
             const values = [
                 [
                     data.nombrePagador,
                     data.monto,
                     data.fecha,
                     data.codigoSeguridad,
-                    data.medioDePago || 'Yape' // Default a Yape si no se especifica
+                    data.medioDePago || 'Yape'
                 ]
             ];
 
             // 3. Append to Sheet
+            // Get correct client (User's or System's)
+            const { sheets } = googleDriveService.getClients(accessToken);
+
             await sheets.spreadsheets.values.append({
                 spreadsheetId,
-                range: 'A:E', // Append to columns A-E (agregamos columna E para Medio de Pago)
-                valueInputOption: 'USER_ENTERED', // Allow formatting (e.g. number for amount)
+                range: 'A:E',
+                valueInputOption: 'USER_ENTERED',
                 requestBody: {
                     values,
                 },

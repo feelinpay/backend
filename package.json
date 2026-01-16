@@ -9,7 +9,8 @@
     "build": "npx tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
     "seed": "npx ts-node src/seeders/index.ts",
-    "seed:init": "npx ts-node src/seeders/initDatabase.ts"
+    "seed:init": "npx ts-node src/seeders/initDatabase.ts",
+    "lint": "npx tsc --noEmit"
   },
   "keywords": [],
   "author": "",
