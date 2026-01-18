@@ -1,5 +1,6 @@
 import * as admin from 'firebase-admin';
 import path from 'path';
+import { logger } from '../utils/logger';
 
 // Initialize Firebase Admin
 // We use the same service-account.json for convenience if it has permissions
@@ -11,9 +12,9 @@ if (!admin.apps.length) {
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccountPath),
         });
-        console.log('Firebase Admin Initialized');
+        logger.success('Firebase Admin Initialized');
     } catch (error) {
-        console.error('Firebase Admin Initialization Error:', error);
+        logger.error('Firebase Admin Initialization Error:', error);
     }
 }
 
@@ -33,10 +34,10 @@ export const fcmService = {
             };
 
             const response = await admin.messaging().send(message);
-            console.log('Successfully sent message:', response);
+            logger.debug('Successfully sent message:', response);
             return true;
         } catch (error) {
-            console.error('Error sending message:', error);
+            logger.error('Error sending message:', error);
             return false;
         }
     },
@@ -53,9 +54,9 @@ export const fcmService = {
                 tokens: tokens,
             };
             const response = await admin.messaging().sendEachForMulticast(message);
-            console.log(response.successCount + ' messages were sent successfully');
+            logger.debug(`${response.successCount} messages were sent successfully`);
         } catch (error) {
-            console.log('Error sending multicast message:', error);
+            logger.error('Error sending multicast message:', error);
         }
     }
 };

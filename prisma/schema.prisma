@@ -65,6 +65,12 @@ model Usuario {
   googleId            String   @unique // ID de Google para autenticación
   rolId               String   // Referencia al rol
   googleDriveFolderId String?  // ID de la carpeta de Google Drive del usuario
+  
+  // Tokens de Google para acceso privado a Drive
+  googleAccessToken     String?   @db.Text // Token de acceso actual
+  googleRefreshToken    String?   @db.Text // Token para refrescar automáticamente
+  googleTokenExpiresAt  DateTime? // Fecha de expiración del access token
+  
   activo              Boolean  @default(true)
   
   // Sistema de prueba

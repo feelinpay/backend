@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { logger } from '../utils/logger';
 
 const prisma = new PrismaClient();
 
@@ -49,15 +50,15 @@ export class MembresiaRenewalService {
         // LÓGICA INTELIGENTE DE EXTENSIÓN
         if (currentMembership) {
             // CASO 1: Tiene membresía activa → extiende desde fecha de expiración actual
-            console.log(`Usuario tiene membresía activa. Extendiendo desde: ${currentMembership.fechaExpiracion}`);
+            logger.debug(`Usuario tiene membresía activa. Extendiendo desde: ${currentMembership.fechaExpiracion}`);
             fechaExpiracion = this.addMonths(currentMembership.fechaExpiracion, membresia.meses);
         } else if (user?.fechaFinPrueba && user.fechaFinPrueba > today) {
             // CASO 2: Está en período de prueba → extiende desde fecha fin de prueba
-            console.log(`Usuario en prueba. Extendiendo desde: ${user.fechaFinPrueba}`);
+            logger.debug(`Usuario en prueba. Extendiendo desde: ${user.fechaFinPrueba}`);
             fechaExpiracion = this.addMonths(user.fechaFinPrueba, membresia.meses);
         } else {
             // CASO 3: No tiene membresía activa ni prueba válida → inicia desde hoy
-            console.log('Usuario sin membresía activa. Iniciando desde hoy');
+            logger.debug('Usuario sin membresía activa. Iniciando desde hoy');
             fechaExpiracion = this.addMonths(today, membresia.meses);
         }
 
@@ -87,7 +88,7 @@ export class MembresiaRenewalService {
             }
         });
 
-        console.log(`Nueva membresía creada. Expira: ${fechaExpiracion}`);
+        logger.debug(`Nueva membresía creada. Expira: ${fechaExpiracion}`);
 
         return newMembership;
     }

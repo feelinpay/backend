@@ -5,13 +5,14 @@ import jwt from 'jsonwebtoken';
 
 import { googleDriveService } from '../services/googleDriveService';
 import { MembresiaUsuarioService } from '../services/membresiaUsuarioService';
+import { googleTokenService } from '../services/googleTokenService';
 
 const prisma = new PrismaClient();
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export const googleLogin = async (req: Request, res: Response) => {
   try {
-    const { token } = req.body;
+    const { token, accessToken, refreshToken } = req.body;
 
     if (!token) {
       return res.status(400).json({
@@ -154,6 +155,20 @@ export const googleLogin = async (req: Request, res: Response) => {
       if (googleDriveFolderId && googleDriveFolderId !== user.googleDriveFolderId) {
         console.log('🔄 Actualizando Folder ID desde App:', googleDriveFolderId);
         updateData.googleDriveFolderId = googleDriveFolderId;
+      }
+
+      // NUEVO: Guardar tokens de Google para acceso privado a Drive
+      if (accessToken) {
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 1); // Los tokens de Google expiran en ~1 hora
+        updateData.googleAccessToken = accessToken;
+        updateData.googleTokenExpiresAt = expiresAt;
+        console.log('🔑 Token de Google guardado en BD');
+      }
+
+      if (refreshToken) {
+        updateData.googleRefreshToken = refreshToken;
+        console.log('🔄 Refresh token de Google guardado en BD');
       }
 
       // IMPORTANTE: Verificar siempre si tiene carpeta
@@ -368,29 +383,3 @@ export const updateProfile = async (req: Request, res: Response) => {
   }
 };
 
-export const changePassword = async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).user.id;
-    const { currentPassword, newPassword } = req.body;
-
-    // Nota: Aquí se debería verificar la contraseña actual si no es login por Google
-    // Por simplicidad y dado que el flujo actual es mayormente Google, 
-    // actualizaremos si el usuario existe.
-
-    await prisma.usuario.update({
-      where: { id: userId },
-      data: {
-        // En una app real, aquí se hashearía la contraseña newPassword
-        // password: hashedNewPassword 
-      }
-    });
-
-    res.json({
-      success: true,
-      message: 'Contraseña actualizada'
-    });
-  } catch (error) {
-    console.error('Error changing password:', error);
-    res.status(500).json({ success: false, message: 'Error al cambiar contraseña' });
-  }
-};

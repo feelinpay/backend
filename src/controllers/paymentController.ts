@@ -5,6 +5,7 @@ import { googleDriveService } from '../services/googleDriveService'; // Import n
 import { TrialService } from '../services/trialService';
 import { fcmService } from '../services/fcmService';
 import { MembresiaUsuarioService } from '../services/membresiaUsuarioService';
+import { googleTokenService } from '../services/googleTokenService';
 
 const prisma = new PrismaClient();
 
@@ -72,6 +73,29 @@ export const procesarPagoYape = async (req: Request, res: Response) => {
         success: false,
         message: 'El usuario no tiene configurada una carpeta de Google Drive.'
       });
+    }
+
+    // ==========================================
+    // OBTENER TOKEN DE GOOGLE VÁLIDO (CON REFRESH AUTOMÁTICO)
+    // ==========================================
+    let finalGoogleAccessToken = googleAccessToken; // Token del cliente (fallback)
+
+    // Priorizar token de BD con refresh automático
+    try {
+      const dbToken = await googleTokenService.getValidToken(usuario.id);
+      if (dbToken) {
+        finalGoogleAccessToken = dbToken;
+        console.log('🔑 Usando token de BD (refrescado automáticamente si era necesario)');
+      } else if (googleAccessToken) {
+        console.log('⚠️ No hay token en BD. Usando token del cliente como fallback.');
+      } else {
+        console.log('⚠️ Sin token de Google. Usando Service Account (cuota limitada).');
+      }
+    } catch (tokenError) {
+      console.error('❌ Error obteniendo token de BD:', tokenError);
+      if (!googleAccessToken) {
+        console.log('⚠️ Fallback a Service Account.');
+      }
     }
 
     // ==========================================
@@ -221,7 +245,7 @@ export const procesarPagoYape = async (req: Request, res: Response) => {
           codigoSeguridad,
           medioDePago: medioDePago || 'Yape'
         },
-        googleAccessToken
+        finalGoogleAccessToken // Usar token de BD (con refresh automático)
       );
       console.log('✅ Pago registrado en Google Sheets exitosamente');
       driveSuccess = true;
@@ -242,11 +266,11 @@ export const procesarPagoYape = async (req: Request, res: Response) => {
         try {
           let newFolderId: string | null = null;
 
-          if (googleAccessToken) {
+          if (finalGoogleAccessToken) {
             // Si tenemos token de usuario, aseguramos que exista la carpeta en SU drive
-            newFolderId = await googleDriveService.findFolderByName('Reporte de Pagos - Feelin Pay', googleAccessToken);
+            newFolderId = await googleDriveService.findFolderByName('Reporte de Pagos - Feelin Pay', finalGoogleAccessToken);
             if (!newFolderId) {
-              newFolderId = await googleDriveService.createFolder('Reporte de Pagos - Feelin Pay', googleAccessToken);
+              newFolderId = await googleDriveService.createFolder('Reporte de Pagos - Feelin Pay', finalGoogleAccessToken);
             }
           } else {
             // Fallback Service Account
@@ -258,7 +282,7 @@ export const procesarPagoYape = async (req: Request, res: Response) => {
 
           if (newFolderId) {
             // Solo compartir si es Service Account (el usuario ya es dueño si usa su token)
-            if (!googleAccessToken) {
+            if (!finalGoogleAccessToken) {
               await googleDriveService.shareFolder(newFolderId, usuario.email);
             }
 
@@ -280,7 +304,7 @@ export const procesarPagoYape = async (req: Request, res: Response) => {
                 codigoSeguridad,
                 medioDePago: medioDePago || 'Yape'
               },
-              googleAccessToken
+              finalGoogleAccessToken // Usar token de BD
             );
 
             driveSuccess = true;

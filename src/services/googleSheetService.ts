@@ -1,6 +1,7 @@
 import { google } from 'googleapis';
 import { GoogleAuth } from 'google-auth-library';
 import { googleDriveService } from './googleDriveService';
+import { logger } from '../utils/logger';
 
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 
@@ -52,10 +53,8 @@ export const googleSheetService = {
                 },
             });
 
-            // console.log(`Payment logged to sheet ${spreadsheetId}`);
-
         } catch (error) {
-            console.error('Error adding payment row to Sheet:', error);
+            logger.error('Error adding payment row to Sheet:', error);
             throw error;
         }
     },

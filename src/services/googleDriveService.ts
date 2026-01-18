@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import { GoogleAuth, OAuth2Client } from 'google-auth-library';
+import { logger } from '../utils/logger';
 
 // Load credentials from environment
 const SCOPES = [
@@ -54,10 +55,10 @@ export const googleDriveService = {
                 fields: 'id',
             });
 
-            console.log(`Folder created: ${file.data.id} (UserAuth: ${!!accessToken})`);
+            logger.debug(`Folder created: ${file.data.id} (UserAuth: ${!!accessToken})`);
             return file.data.id!;
         } catch (error) {
-            console.error('Error creating Drive folder:', error);
+            logger.error('Error creating Drive folder:', error);
             throw error;
         }
     },
@@ -80,7 +81,7 @@ export const googleDriveService = {
             }
             return null;
         } catch (error) {
-            console.error('Error searching for folder:', error);
+            logger.error('Error searching for folder:', error);
             throw error;
         }
     },
@@ -100,9 +101,9 @@ export const googleDriveService = {
                 },
                 fields: 'id',
             });
-            console.log(`Folder ${fileId} shared with ${email}`);
+            logger.debug(`Folder ${fileId} shared with ${email}`);
         } catch (error) {
-            console.error(`Error sharing folder with ${email}:`, error);
+            logger.error(`Error sharing folder with ${email}:`, error);
         }
     },
 
@@ -147,9 +148,9 @@ export const googleDriveService = {
 
                 if (foundId) {
                     targetFolderId = foundId;
-                    console.log(`✅ [UserAuth] Found existing folder: ${targetFolderId}`);
+                    logger.debug(`[UserAuth] Found existing folder: ${targetFolderId}`);
                 } else {
-                    console.log(`✨ [UserAuth] Creating new private folder...`);
+                    logger.debug(`[UserAuth] Creating new private folder...`);
                     targetFolderId = await this.createFolder(folderName, accessToken);
                 }
             } else {
@@ -161,7 +162,7 @@ export const googleDriveService = {
             // 2. Search for Daily Sheet
             const sheetQuery = `name = '${sheetName}' and '${targetFolderId}' in parents and trashed = false`;
 
-            console.log(`🔍 [Drive Service] Searching for file with query: [${sheetQuery}]`);
+            logger.debug(`[Drive Service] Searching for file with query: [${sheetQuery}]`);
 
             const res = await drive.files.list({
                 q: sheetQuery,
@@ -169,17 +170,17 @@ export const googleDriveService = {
                 spaces: 'drive',
             });
 
-            console.log(`🔍 [Drive Service] Found ${res.data.files?.length || 0} files.`);
+            logger.debug(`[Drive Service] Found ${res.data.files?.length || 0} files.`);
 
             if (res.data.files && res.data.files.length > 0) {
                 const existingFile = res.data.files[0];
                 const sheetId = existingFile.id!;
-                console.log(`✅ [Drive Service] Found existing daily sheet: ${sheetId} (${existingFile.name})`);
+                logger.debug(`[Drive Service] Found existing daily sheet: ${sheetId} (${existingFile.name})`);
                 return sheetId;
             }
 
             // 3. Create Sheet
-            console.log(`✨ [Drive Service] Creating NEW daily sheet: ${sheetName}`);
+            logger.debug(`[Drive Service] Creating NEW daily sheet: ${sheetName}`);
 
             const fileMetadata = {
                 name: sheetName,
@@ -193,7 +194,7 @@ export const googleDriveService = {
             });
 
             const spreadsheetId = file.data.id!;
-            console.log(`Sheet created: ${spreadsheetId}`);
+            logger.debug(`Sheet created: ${spreadsheetId}`);
 
             // 4. Initialize Headers
             await sheets.spreadsheets.values.update({
@@ -208,7 +209,7 @@ export const googleDriveService = {
             return spreadsheetId;
 
         } catch (error) {
-            console.error('Error ensuring daily payment sheet:', error);
+            logger.error('Error ensuring daily payment sheet:', error);
             throw error;
         }
     },

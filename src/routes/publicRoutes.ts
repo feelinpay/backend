@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { googleLogin, getMe, updateProfile, changePassword } from '../controllers/authController';
+import { googleLogin, getMe, updateProfile } from '../controllers/authController';
 import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
@@ -13,7 +13,12 @@ router.post('/auth/google', googleLogin);
 
 router.get('/auth/me', authenticateToken, getMe);
 router.put('/auth/profile', authenticateToken, updateProfile);
-router.patch('/auth/password', authenticateToken, changePassword);
+
+
+// Token Management (para monitoreo y debugging en producción)
+import { checkTokenStatus, forceRefreshToken } from '../controllers/tokenController';
+router.get('/auth/token-status', authenticateToken, checkTokenStatus);
+router.post('/auth/token-refresh', authenticateToken, forceRefreshToken);
 
 // Health check
 router.get('/health', (req, res) => {

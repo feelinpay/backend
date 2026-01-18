@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { logger } from '../utils/logger';
 
 const prisma = new PrismaClient();
 
@@ -29,7 +30,7 @@ export class TrialService {
       // Período de prueba de 3 días
       return diasTranscurridos <= 3;
     } catch (error) {
-      console.error('Error verificando período de prueba:', error);
+      logger.error('Error verificando período de prueba:', error);
       return false;
     }
   }
@@ -51,7 +52,7 @@ export class TrialService {
       const diasRestantes = Math.max(0, 3 - diasTranscurridos);
       return diasRestantes;
     } catch (error) {
-      console.error('Error obteniendo días restantes:', error);
+      logger.error('Error obteniendo días restantes:', error);
       return 0;
     }
   }
@@ -62,7 +63,7 @@ export class TrialService {
       const diasRestantes = await this.obtenerDiasRestantesPrueba(usuarioId);
       return diasRestantes === 0;
     } catch (error) {
-      console.error('Error verificando expiración:', error);
+      logger.error('Error verificando expiración:', error);
       return true; // En caso de error, asumir que expiró
     }
   }
@@ -85,7 +86,7 @@ export class TrialService {
             : 'No estás en período de prueba'
       };
     } catch (error) {
-      console.error('Error obteniendo info de período de prueba:', error);
+      logger.error('Error obteniendo info de período de prueba:', error);
       return {
         estaEnPeriodoPrueba: false,
         diasRestantes: 0,
@@ -106,7 +107,7 @@ export class TrialService {
         diasAdicionales
       };
     } catch (error) {
-      console.error('Error extendiendo período de prueba:', error);
+      logger.error('Error extendiendo período de prueba:', error);
       throw error;
     }
   }
