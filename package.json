@@ -7,6 +7,7 @@
     "start": "node dist/app.js",
     "dev": "npx ts-node src/app.ts",
     "build": "npx tsc",
+    "vercel-build": "npx tsc && npx prisma generate",
     "test": "echo \"Error: no test specified\" && exit 1",
     "seed": "npx ts-node src/seeders/index.ts",
     "seed:init": "npx ts-node src/seeders/initDatabase.ts",
@@ -42,5 +43,8 @@
     "prisma": "^5.10.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
+  },
+  "prisma": {
+    "seed": "npx ts-node src/seeders/index.ts"
   }
 }
