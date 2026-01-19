@@ -104,6 +104,8 @@ app.use(errorHandler);
 const PORT = AppConfig.server.port;
 const HOST = AppConfig.server.host;
 
+export default app;
+
 app.listen(PORT, HOST, () => {
   console.log(`Servidor backend corriendo en ${AppConfig.server.url}`);
   console.log(`Entorno: ${AppConfig.server.nodeEnv}`);
