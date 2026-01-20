@@ -1,4 +1,5 @@
 import { google } from 'googleapis';
+import fs from 'fs';
 import { GoogleAuth, OAuth2Client } from 'google-auth-library';
 import { logger } from '../utils/logger';
 
@@ -14,26 +15,23 @@ let driveServiceAccount: any;
 let sheetsServiceAccount: any;
 
 try {
-    const auth = new GoogleAuth({
-        keyFile: 'service-account.json',
-        scopes: SCOPES,
-    });
-    // We don't initialize clients here immediately to avoid file read if not needed, 
-    // OR we can leave it if GoogleAuth is lazy. 
-    // But the error 'ENOENT' suggests it reads immediately.
-    // So we should check if we really need it.
-    // However, simplest fix for now regarding the USER's specific error:
+    // Check if file exists first to avoid runtime ENOENT on Vercel/Production
+    if (fs.existsSync('service-account.json')) {
+        const auth = new GoogleAuth({
+            keyFile: 'service-account.json',
+            scopes: SCOPES,
+        });
 
-    // Changing to:
-    driveServiceAccount = google.drive({ version: 'v3', auth });
-    sheetsServiceAccount = google.sheets({ version: 'v4', auth });
-} catch (e: any) {
-    if (e.code === 'ENOENT') {
-        // Expected in production/vercel if not using service account
-        logger.debug('Service Account file not found (running in User Auth mode only).');
+        // Initialize clients
+        driveServiceAccount = google.drive({ version: 'v3', auth });
+        sheetsServiceAccount = google.sheets({ version: 'v4', auth });
+
+        logger.info('✅ Service Account initialized successfully');
     } else {
-        logger.warn('Service Account initialization failed:', e.message);
+        logger.debug('ℹ️ service-account.json not found. Running in User Auth mode only.');
     }
+} catch (e: any) {
+    logger.warn('Service Account initialization failed:', e.message);
 }
 
 
