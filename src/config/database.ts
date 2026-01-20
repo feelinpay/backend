@@ -13,7 +13,7 @@ const prisma = global.prisma || new PrismaClient({
   // Fixes "prepared statement already exists" error
   datasources: {
     db: {
-      url: process.env.DATABASE_URL + '?pgbouncer=true&statement_cache_size=0',
+      url: process.env.DATABASE_URL + '?pgbouncer=true&statement_cache_size=0&pool_timeout=0&connect_timeout=10',
     },
   },
 });
