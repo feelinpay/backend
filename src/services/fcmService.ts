@@ -26,6 +26,10 @@ export const fcmService = {
      * Send a notification to a specific topic (e.g., 'business_123')
      */
     async sendToTopic(topic: string, title: string, body: string, data: any = {}) {
+        if (!admin.apps.length) {
+            logger.warn('Firebase not initialized. Skipping sendToTopic.');
+            return false;
+        }
         try {
             const message = {
                 topic: topic,
@@ -50,6 +54,10 @@ export const fcmService = {
      */
     async sendToTokens(tokens: string[], title: string, body: string) {
         if (tokens.length === 0) return;
+        if (!admin.apps.length) {
+            logger.warn('Firebase not initialized. Skipping sendToTokens.');
+            return;
+        }
 
         try {
             const message = {

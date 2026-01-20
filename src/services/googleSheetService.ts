@@ -5,12 +5,7 @@ import { logger } from '../utils/logger';
 
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 
-const auth = new GoogleAuth({
-    keyFile: 'service-account.json', // Ensure this file exists
-    scopes: SCOPES,
-});
 
-const sheets = google.sheets({ version: 'v4', auth });
 
 export interface PaymentData {
     nombrePagador: string;

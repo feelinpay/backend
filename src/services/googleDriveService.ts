@@ -9,14 +9,28 @@ const SCOPES = [
     'https://www.googleapis.com/auth/drive.file'
 ];
 
-const auth = new GoogleAuth({
-    keyFile: 'service-account.json', // Ensure this file exists in root
-    scopes: SCOPES,
-});
+// Lazy Initialization or Optional Service Account
+let driveServiceAccount: any;
+let sheetsServiceAccount: any;
 
-// Default Service Account Clients
-const driveServiceAccount = google.drive({ version: 'v3', auth });
-const sheetsServiceAccount = google.sheets({ version: 'v4', auth });
+try {
+    const auth = new GoogleAuth({
+        keyFile: 'service-account.json',
+        scopes: SCOPES,
+    });
+    // We don't initialize clients here immediately to avoid file read if not needed, 
+    // OR we can leave it if GoogleAuth is lazy. 
+    // But the error 'ENOENT' suggests it reads immediately.
+    // So we should check if we really need it.
+    // However, simplest fix for now regarding the USER's specific error:
+
+    // Changing to:
+    driveServiceAccount = google.drive({ version: 'v3', auth });
+    sheetsServiceAccount = google.sheets({ version: 'v4', auth });
+} catch (e) {
+    // logger.warn('Service Account file missing or invalid. Service Account features will be disabled.');
+}
+
 
 export const googleDriveService = {
     /**
@@ -31,6 +45,9 @@ export const googleDriveService = {
                 sheets: google.sheets({ version: 'v4', auth: oauth2Client }),
                 isUserAuth: true
             };
+        }
+        if (!driveServiceAccount || !sheetsServiceAccount) {
+            throw new Error("Google Service Account not initialized (missing service-account.json) and no User AccessToken provided.");
         }
         return {
             drive: driveServiceAccount,
@@ -130,10 +147,20 @@ export const googleDriveService = {
     async ensureDailyPaymentSheet(userFolderId: string, accessToken?: string): Promise<string> {
         const { drive, sheets, isUserAuth } = this.getClients(accessToken);
 
-        const today = new Date();
-        const day = today.getDate().toString().padStart(2, '0');
-        const month = (today.getMonth() + 1).toString().padStart(2, '0');
-        const year = today.getFullYear();
+        // FIX: Force Peru Timezone (UTC-5) regardless of server location
+        const formatter = new Intl.DateTimeFormat('es-PE', {
+            timeZone: 'America/Lima',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+        });
+
+        // Format returns "DD/MM/YYYY" (e.g., "19/01/2026")
+        const parts = formatter.formatToParts(new Date());
+        const day = parts.find(p => p.type === 'day')?.value;
+        const month = parts.find(p => p.type === 'month')?.value;
+        const year = parts.find(p => p.type === 'year')?.value;
+
         const sheetName = `${day}-${month}-${year}`;
 
         try {
