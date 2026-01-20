@@ -1,8 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import { IRolRepository } from '../interfaces/IRolRepository';
 import { CreateRolDto, UpdateRolDto, Rol } from '../models/Rol';
+import prisma from '../config/database';
 
-const prisma = new PrismaClient();
 
 export class RolRepository implements IRolRepository {
   async crear(data: CreateRolDto): Promise<Rol> {
@@ -17,11 +17,11 @@ export class RolRepository implements IRolRepository {
 
   async obtenerTodos(page: number = 1, limit: number = 10, activo?: boolean, search?: string): Promise<{ roles: Rol[]; total: number }> {
     const where: any = {};
-    
+
     if (activo !== undefined) {
       where.activo = activo;
     }
-    
+
     if (search) {
       where.OR = [
         { nombre: { contains: search, mode: 'insensitive' } },

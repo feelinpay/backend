@@ -1,8 +1,7 @@
-import { PrismaClient } from '@prisma/client';
 import { IMembresiaRepository } from '../interfaces/IMembresiaRepository';
-import { Membresia, CreateMembresiaDto, UpdateMembresiaDto } from '../models/Membresia';
+import { CreateMembresiaDto, UpdateMembresiaDto, Membresia } from '../models/Membresia';
+import prisma from '../config/database';
 
-const prisma = new PrismaClient();
 
 export class MembresiaRepository implements IMembresiaRepository {
   async crear(data: CreateMembresiaDto): Promise<Membresia> {
@@ -17,19 +16,19 @@ export class MembresiaRepository implements IMembresiaRepository {
   }
 
   async obtenerTodas(
-    page: number, 
-    limit: number, 
-    activa?: boolean, 
+    page: number,
+    limit: number,
+    activa?: boolean,
     search?: string
   ): Promise<{ membresias: Membresia[]; total: number }> {
     const skip = (page - 1) * limit;
-    
+
     const where: any = {};
-    
+
     if (activa !== undefined) {
       where.activa = activa;
     }
-    
+
     if (search) {
       where.nombre = {
         contains: search,

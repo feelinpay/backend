@@ -1,8 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import { IPermisoRepository } from '../interfaces/IPermisoRepository';
 import { CreatePermisoDto, UpdatePermisoDto, Permiso } from '../models/Permiso';
+import prisma from '../config/database';
 
-const prisma = new PrismaClient();
 
 export class PermisoRepository implements IPermisoRepository {
   async crear(data: CreatePermisoDto): Promise<Permiso> {
