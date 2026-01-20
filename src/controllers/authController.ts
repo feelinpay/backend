@@ -173,12 +173,19 @@ export const googleLogin = async (req: Request, res: Response) => {
       // IMPORTANTE: Verificar siempre si tiene carpeta
       let needsFolderCreation = !user.googleDriveFolderId && !googleDriveFolderId;
 
-      // Si tiene ID en BD, verificar que exista realmente en Drive
+      // Si tiene ID en BD, verificar que exista realmente en Drive (Wrapped in try-catch for safety)
       if (user.googleDriveFolderId) {
-        const folderExists = await googleDriveService.checkFolderExists(user.googleDriveFolderId);
-        if (!folderExists) {
-          console.log(`Usuario ${email} tiene ID pero la carpeta no existe/fue borrada. Recreating...`);
-          needsFolderCreation = true;
+        try {
+          const folderExists = await googleDriveService.checkFolderExists(user.googleDriveFolderId);
+          if (!folderExists) {
+            console.log(`Usuario ${email} tiene ID pero la carpeta no existe/fue borrada. Recreating...`);
+            needsFolderCreation = true;
+          }
+        } catch (checkError) {
+          console.error('Error checking folder existence (Non-fatal):', checkError);
+          // If we can't check, we assume it's fine OR we don't try to create a new one to avoid mess.
+          // Or we could set needsFolderCreation = true if we want to be aggressive.
+          // For now, let's just log it and NOT shadow the 500 error.
         }
       }
 
