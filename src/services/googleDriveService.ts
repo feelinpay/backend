@@ -225,11 +225,10 @@ export const googleDriveService = {
 
             // 4. Initialize Headers
             await sheets.spreadsheets.values.update({
-                spreadsheetId,
-                range: 'A1:E1',
+                range: 'A1:D1',
                 valueInputOption: 'RAW',
                 requestBody: {
-                    values: [['Nombre del yapeador', 'Monto', 'Fecha y hora exacta', 'Código de seguridad', 'Medio de Pago']],
+                    values: [['Nombre del yapeador', 'Monto', 'Fecha y hora exacta', 'Código de seguridad']],
                 },
             });
 

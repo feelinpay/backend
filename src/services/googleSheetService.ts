@@ -41,10 +41,17 @@ export const googleSheetService = {
 
             await sheets.spreadsheets.values.append({
                 spreadsheetId,
-                range: 'A:E',
+                range: 'A:D',
                 valueInputOption: 'USER_ENTERED',
                 requestBody: {
-                    values,
+                    values: [
+                        [
+                            data.nombrePagador,
+                            data.monto,
+                            data.fecha,
+                            data.codigoSeguridad
+                        ]
+                    ],
                 },
             });
 
