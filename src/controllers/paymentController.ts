@@ -1,13 +1,11 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { googleSheetService } from '../services/googleSheetService';
 import { googleDriveService } from '../services/googleDriveService'; // Import necesario para Auto-Healing
 import { TrialService } from '../services/trialService';
 import { fcmService } from '../services/fcmService';
 import { MembresiaUsuarioService } from '../services/membresiaUsuarioService';
 import { googleTokenService } from '../services/googleTokenService';
-
-const prisma = new PrismaClient();
+import prisma from '../config/database';
 
 // Procesar pago recibido por Yape (Logging a Google Sheets)
 export const procesarPagoYape = async (req: Request, res: Response) => {

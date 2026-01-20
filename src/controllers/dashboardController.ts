@@ -1,7 +1,5 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../config/database';
 
 // Obtener información del dashboard para el usuario
 export const getDashboardInfo = async (req: Request, res: Response) => {

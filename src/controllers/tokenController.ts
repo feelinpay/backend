@@ -1,8 +1,6 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../config/database';
 import { googleTokenService } from '../services/googleTokenService';
-
-const prisma = new PrismaClient();
 
 /**
  * Verificar el estado del token de Google del usuario actual
@@ -83,7 +81,7 @@ export const forceRefreshToken = async (req: Request, res: Response) => {
             });
         }
 
-        console.log(`🔄 Forzando refresh de token para: ${user.email}`);
+        console.log(`🔄 Forzando refresh de token para: ${user.email} `);
 
         const newToken = await googleTokenService.refreshUserToken(userId);
 

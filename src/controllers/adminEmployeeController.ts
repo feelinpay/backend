@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+
 import { EmployeeRepository } from '../repositories/EmployeeRepository';
 import {
   createEmployeeForUserSchema,
@@ -11,7 +11,7 @@ import {
   employeeFiltersSchema
 } from '../validators/employeeValidators';
 
-const prisma = new PrismaClient();
+import prisma from '../config/database';
 const employeeRepository = new EmployeeRepository(prisma);
 
 // ========================================

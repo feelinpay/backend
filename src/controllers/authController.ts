@@ -1,13 +1,12 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 
+import prisma from '../config/database';
 import { googleDriveService } from '../services/googleDriveService';
 import { MembresiaUsuarioService } from '../services/membresiaUsuarioService';
 import { googleTokenService } from '../services/googleTokenService';
 
-const prisma = new PrismaClient();
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export const googleLogin = async (req: Request, res: Response) => {

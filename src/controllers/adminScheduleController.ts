@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+
 import {
     horarioLaboralSchema,
 } from '../validators/scheduleValidators';
 
-const prisma = new PrismaClient();
+import prisma from '../config/database';
 
 // Obtener horarios laborales de un empleado (Super Admin)
 export const getHorariosLaborales = async (req: Request, res: Response) => {

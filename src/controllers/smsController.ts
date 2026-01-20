@@ -1,7 +1,5 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../config/database';
 
 // Estos son stubs básicos para que el frontend no falle con 404
 // La lógica real de envío de SMS la maneja el dispositivo móvil (Modo Puente)
