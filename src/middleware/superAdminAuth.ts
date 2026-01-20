@@ -12,11 +12,6 @@ export const requireSuperAdmin = (req: Request, res: Response, next: NextFunctio
     }
 
     if (user.rol !== 'super_admin') {
-      console.log('❌ [SUPER_ADMIN] Acceso denegado:', {
-        email: user.email,
-        rolActual: user.rol,
-        rolRequerido: 'super_admin'
-      });
       return res.status(403).json({
         success: false,
         message: 'Acceso denegado. Se requiere rol de super administrador'

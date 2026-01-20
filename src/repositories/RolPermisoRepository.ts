@@ -1,4 +1,3 @@
-import { PrismaClient } from '@prisma/client';
 import { IRolPermisoRepository } from '../interfaces/IRolPermisoRepository';
 import { CreateRolPermisoDto, RolPermiso } from '../models/RolPermiso';
 import prisma from '../config/database';

@@ -1,4 +1,3 @@
-import { PrismaClient } from '@prisma/client';
 import { IMembresiaUsuarioRepository } from '../interfaces/IMembresiaUsuarioRepository';
 import { CreateMembresiaUsuarioDto, UpdateMembresiaUsuarioDto, MembresiaUsuario } from '../models/MembresiaUsuario';
 import prisma from '../config/database';

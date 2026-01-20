@@ -1,4 +1,3 @@
-import { PrismaClient } from '@prisma/client';
 import { IRolRepository } from '../interfaces/IRolRepository';
 import { CreateRolDto, UpdateRolDto, Rol } from '../models/Rol';
 import prisma from '../config/database';

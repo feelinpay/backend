@@ -1,4 +1,3 @@
-import { PrismaClient } from '@prisma/client';
 import { IPermisoRepository } from '../interfaces/IPermisoRepository';
 import { CreatePermisoDto, UpdatePermisoDto, Permiso } from '../models/Permiso';
 import prisma from '../config/database';
