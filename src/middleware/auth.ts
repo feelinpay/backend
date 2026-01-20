@@ -42,6 +42,14 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
       googleId: usuario.googleId
     };
 
+    // DEBUG: Log para diagnosticar 403
+    console.log('✅ [AUTH] Usuario autenticado:', {
+      email: usuario.email,
+      rol: usuario.rol.nombre,
+      activo: usuario.activo,
+      path: req.path
+    });
+
     next();
   } catch (error) {
     console.error('Error en autenticación:', error);
