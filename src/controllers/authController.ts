@@ -352,39 +352,5 @@ export const getMe = async (req: Request, res: Response) => {
   }
 };
 
-export const updateProfile = async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).user.id;
-    const { nombre } = req.body;
-
-    const user = await prisma.usuario.update({
-      where: { id: userId },
-      data: { nombre },
-      include: {
-        rol: {
-          include: {
-            permisos: {
-              include: {
-                permiso: true
-              }
-            }
-          }
-        }
-      }
-    });
-
-    res.json({
-      success: true,
-      message: 'Perfil actualizado exitosamente',
-      data: {
-        ...user,
-        rol: user.rol, // Full role object with permissions
-        rolNombre: user.rol.nombre
-      }
-    });
-  } catch (error) {
-    console.error('Error updating profile:', error);
-    res.status(500).json({ success: false, message: 'Error al actualizar perfil' });
-  }
-};
+// Method removed: updateProfile was unused.
 

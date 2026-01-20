@@ -57,23 +57,4 @@ router.post('/users/:usuarioId/membership/activate', requireRole(['super_admin']
 // Desactivar membresía
 router.post('/users/:usuarioId/membership/deactivate', requireRole(['super_admin']), desactivarMembresia);
 
-// ========================================
-// GESTIÓN DE EMPLEADOS DE USUARIOS (SUPER ADMIN)
-// ========================================
-
-// Listar empleados de un usuario específico
-import {
-    getEmployeesByUser,
-    createEmployeeForUser,
-    updateEmployeeByUser,
-    deleteEmployeeByUser,
-    toggleEmployeeStatusByUser
-} from '../controllers/adminEmployeeController';
-
-router.get('/users/:userId/employees', requireRole(['super_admin']), getEmployeesByUser);
-router.post('/users/:userId/employees', requireRole(['super_admin']), createEmployeeForUser);
-router.put('/users/:userId/employees/:employeeId', requireRole(['super_admin']), updateEmployeeByUser);
-router.delete('/users/:userId/employees/:employeeId', requireRole(['super_admin']), deleteEmployeeByUser);
-router.patch('/users/:userId/employees/:employeeId/toggle', requireRole(['super_admin']), toggleEmployeeStatusByUser);
-
 export default router;

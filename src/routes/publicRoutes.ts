@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { googleLogin, getMe, updateProfile } from '../controllers/authController';
+import { googleLogin, getMe } from '../controllers/authController';
 import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
@@ -12,7 +12,7 @@ const router = Router();
 router.post('/auth/google', googleLogin);
 
 router.get('/auth/me', authenticateToken, getMe);
-router.put('/auth/profile', authenticateToken, updateProfile);
+
 
 
 // Token Management (para monitoreo y debugging en producción)
