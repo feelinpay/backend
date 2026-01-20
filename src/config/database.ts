@@ -8,6 +8,13 @@ declare global {
 
 const prisma = global.prisma || new PrismaClient({
   log: ['warn', 'error'],
+  // Disable prepared statements for Vercel serverless compatibility
+  // Fixes "prepared statement already exists" error
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL + '?pgbouncer=true&connection_limit=1',
+    },
+  },
 });
 
 if (process.env.NODE_ENV !== 'production') {
