@@ -1,20 +1,23 @@
 import * as admin from 'firebase-admin';
 import path from 'path';
+import fs from 'fs';
 import { logger } from '../utils/logger';
 
-// Initialize Firebase Admin
-// We use the same service-account.json for convenience if it has permissions
-// Otherwise, we might need a separate file.
+// Initialize Firebase Admin only if service account file exists
 const serviceAccountPath = path.join(process.cwd(), 'service-account.json');
 
 if (!admin.apps.length) {
     try {
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccountPath),
-        });
-        logger.success('Firebase Admin Initialized');
+        // Only initialize if the file exists
+        if (fs.existsSync(serviceAccountPath)) {
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccountPath),
+            });
+            logger.success('Firebase Admin Initialized');
+        }
+        // Silently skip if file doesn't exist (not critical for app functionality)
     } catch (error) {
-        logger.error('Firebase Admin Initialization Error:', error);
+        // Silent fail - Firebase is optional
     }
 }
 

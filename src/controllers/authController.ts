@@ -207,8 +207,7 @@ export const googleLogin = async (req: Request, res: Response) => {
             updateData.googleDriveFolderId = folderId;
           }
         } catch (driveError) {
-          console.error('❌ [Auth] Error managing Drive folder:', driveError);
-          // Do not fail login, but log critical error
+          // Silently fail - Drive folder management is optional
         }
       }
 
