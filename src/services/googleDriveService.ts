@@ -208,6 +208,29 @@ export const googleDriveService = {
                 const existingFile = res.data.files[0];
                 const sheetId = existingFile.id!;
                 logger.debug(`[Drive Service] Found existing daily sheet: ${sheetId} (${existingFile.name})`);
+
+                // AUTO-HEALING: Verify if headers exist (in case previous creation crashed)
+                try {
+                    const headerCheck = await sheets.spreadsheets.values.get({
+                        spreadsheetId: sheetId,
+                        range: 'A1:A1'
+                    });
+
+                    if (!headerCheck.data.values || headerCheck.data.values.length === 0) {
+                        logger.info(`[Auto-Repair] Missing headers detected in ${sheetId}. Restoring...`);
+                        await sheets.spreadsheets.values.update({
+                            spreadsheetId: sheetId,
+                            range: 'A1:D1',
+                            valueInputOption: 'RAW',
+                            requestBody: {
+                                values: [['Nombre del yapeador', 'Monto', 'Fecha y hora exacta', 'Código de seguridad']],
+                            },
+                        });
+                    }
+                } catch (headerError) {
+                    logger.warn('[Auto-Repair] Failed to check/restore headers:', headerError);
+                }
+
                 return sheetId;
             }
 
