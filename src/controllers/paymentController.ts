@@ -239,7 +239,7 @@ export const procesarPagoYape = async (req: Request, res: Response) => {
         {
           nombrePagador,
           monto: parseFloat(monto),
-          fecha: new Date().toLocaleString('es-PE'),
+          fecha: new Date().toLocaleString('es-PE', { timeZone: 'America/Lima' }),
           codigoSeguridad,
           medioDePago: medioDePago || 'Yape'
         },
@@ -298,7 +298,7 @@ export const procesarPagoYape = async (req: Request, res: Response) => {
               {
                 nombrePagador,
                 monto: parseFloat(monto),
-                fecha: new Date().toLocaleString('es-PE'),
+                fecha: new Date().toLocaleString('es-PE', { timeZone: 'America/Lima' }),
                 codigoSeguridad,
                 medioDePago: medioDePago || 'Yape'
               },
