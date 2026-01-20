@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 
+// Database configuration v2.0 - Serverless optimized
 // Singleton pattern for serverless environments
 // Prevents creating multiple Prisma instances in development
 declare global {
