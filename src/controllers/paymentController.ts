@@ -213,7 +213,12 @@ export const procesarPagoYape = async (req: Request, res: Response) => {
           console.log(`      ✅ Agregando ${emp.telefono} a lista SMS`);
           numerosParaSMS.push(emp.telefono);
         } else {
-          console.log(`      ❌ No está trabajando, no se enviará SMS`);
+          console.log(`      ❌ ${emp.nombre} NO está trabajando en este momento. (Hora actual: ${currentTimeVal} min)`);
+          if (horariosHoy.length === 0) {
+            console.log(`         Razón: No tiene horarios activos para ${diaNombre} o lista vacía.`);
+          } else {
+            console.log(`         Razón: Fuera de rango en ${horariosHoy.length} horarios definidos.`);
+          }
         }
       }
       console.log(`📱 [SMS LOGIC] Total destinatarios: ${numerosParaSMS.length}`);

@@ -27,8 +27,13 @@ try {
     // Changing to:
     driveServiceAccount = google.drive({ version: 'v3', auth });
     sheetsServiceAccount = google.sheets({ version: 'v4', auth });
-} catch (e) {
-    // logger.warn('Service Account file missing or invalid. Service Account features will be disabled.');
+} catch (e: any) {
+    if (e.code === 'ENOENT') {
+        // Expected in production/vercel if not using service account
+        logger.debug('Service Account file not found (running in User Auth mode only).');
+    } else {
+        logger.warn('Service Account initialization failed:', e.message);
+    }
 }
 
 
@@ -220,11 +225,17 @@ export const googleDriveService = {
                 fields: 'id',
             });
 
-            const spreadsheetId = file.data.id!;
+            const spreadsheetId = file.data.id;
+
+            if (!spreadsheetId) {
+                throw new Error('Failed to create spreadsheet: received undefined ID from Drive API');
+            }
+
             logger.debug(`Sheet created: ${spreadsheetId}`);
 
             // 4. Initialize Headers
             await sheets.spreadsheets.values.update({
+                spreadsheetId, // TS knows it's string now
                 range: 'A1:D1',
                 valueInputOption: 'RAW',
                 requestBody: {
